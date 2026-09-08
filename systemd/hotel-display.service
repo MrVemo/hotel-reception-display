@@ -1,0 +1,42 @@
+[Unit]
+Description=Hotel Reception Display — Flask Backend
+Documentation=https://github.com/MrVemo/hotel-reception-display
+After=network-online.target
+Wants=network-online.target
+
+# Restart-Limit (verhindert Endlos-Restart-Loop)
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+
+# Working-Directory = Repo-Root (für relative Pfade + Templates)
+WorkingDirectory=/home/pi/hotel-reception-display
+
+# Hauptkommando: venv-Python mit app.py
+ExecStart=/home/pi/hotel-reception-display/venv/bin/python3 /home/pi/hotel-reception-display/src/app.py
+
+# Restart-Verhalten: bei Crash neu starten, mit Verzögerung
+Restart=on-failure
+RestartSec=5
+
+# Environment aus /etc/default/hotel-display laden
+EnvironmentFile=/etc/default/hotel-display
+
+# Sicherheit: Minimale Privilegien
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/home/pi/hotel-reception-display/data
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=hotel-display
+
+[Install]
+WantedBy=multi-user.target

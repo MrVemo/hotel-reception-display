@@ -83,13 +83,27 @@ hotel-reception-display/
 
 | Phase | Inhalt | Status |
 |---|---|---|
-| 1 | Backend (Flask + SQLite, Items-CRUD) | 🔄 In Arbeit |
-| 2 | Display-UI (Touch-fähig) | ⏳ Geplant |
-| 3 | Form-UI + Login-Code-Auth | ⏳ Geplant |
-| 4 | Installer-Script + systemd-Service | ⏳ Geplant |
+| 1 | Backend (Flask + SQLite, Items-CRUD) | ✅ Done |
+| 2 | Display-UI (Touch-fähig) | ✅ Done |
+| 3 | Form-UI + Login-Code-Auth | ✅ Done |
+| 4 | Installer-Script + systemd-Service | ✅ Done |
 | 5 | Update-Mechanismus (Tailscale + Manifest) | ⏳ Geplant |
-| 6 | Admin-UI (Mitarbeiter-Verwaltung) | ⏳ Geplant |
-| 7 | Test + Refactor | ⏳ Geplant |
+| 6 | Admin-UI (Mitarbeiter-Verwaltung) | ✅ Done |
+| 7 | Test + Refactor | 🔄 Optional |
+
+## 🚀 Quick-Install
+
+Auf dem Pi (einmalig):
+
+```bash
+git clone https://github.com/MrVemo/hotel-reception-display.git
+cd hotel-reception-display
+sudo bash installer/install.sh
+```
+
+Fertig — Service läuft auf `http://<Pi-IP>:5000/`. Default-Login: `0000` (Admin).
+
+Vollständige Anleitung: [docs/SETUP.md](docs/SETUP.md).
 
 ## Lizenz
 
@@ -97,4 +111,4 @@ MIT — siehe [LICENSE](LICENSE)
 
 ## Status
 
-🚧 **In Entwicklung** — Hardware bestellt, Backend-Phase 1 läuft.
+✅ **Phase 4 abgeschlossen** — Display ready für Hotel-Deployment, wartet auf Hardware.

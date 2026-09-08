@@ -34,6 +34,17 @@ app = Flask(__name__,
             template_folder=os.path.join(os.path.dirname(__file__), 'templates'),
             static_folder=os.path.join(os.path.dirname(__file__), 'static'))
 app.secret_key = os.environ.get('HOTEL_DISPLAY_SECRET', 'dev-secret-change-in-prod')
+app.config['JSON_SORT_KEYS'] = False
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get('HOTEL_DISPLAY_HTTPS', '').lower() in ('1', 'true', 'yes')
+
+# Konfigurierbarer DB-Pfad (für Tests + Production)
+DEFAULT_DB_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    'data', 'hotel-display.db'
+)
 
 # Templates sind jetzt in src/templates/display.html etc.
 
@@ -410,6 +421,12 @@ def server_error(e):
 
 if __name__ == "__main__":
     # DB einmal initialisieren beim Start
-    init_db()
-    print("[app] Starting Flask on http://0.0.0.0:5000")
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    import db as db_module
+    db_module.DB_PATH = os.environ.get('HOTEL_DISPLAY_DB', DEFAULT_DB_PATH)
+    db_module.init_db()
+
+    host = os.environ.get('HOTEL_DISPLAY_HOST', '0.0.0.0')
+    port = int(os.environ.get('HOTEL_DISPLAY_PORT', '5000'))
+    debug = os.environ.get('HOTEL_DISPLAY_DEBUG', '').lower() in ('1', 'true', 'yes')
+    print(f"[app] Starting Flask on http://{host}:{port} (debug={debug})")
+    app.run(host=host, port=port, debug=debug)

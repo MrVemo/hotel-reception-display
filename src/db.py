@@ -34,8 +34,12 @@ def close_db(db):
         db.close()
 
 
-def init_db():
+def init_db(path=None):
     """Erstellt die Tabellen falls nicht vorhanden, und seedet Default-Admin."""
+    global DB_PATH
+    if path:
+        DB_PATH = path
+
     # Sicherstellen dass data/-Verzeichnis existiert
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
