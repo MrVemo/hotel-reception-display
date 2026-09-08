@@ -1,0 +1,71 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# SQLite
+*.db
+*.sqlite
+*.sqlite3
+data/
+instance/
+
+# Secrets (NIEMALS committen!)
+*.key
+*.pem
+secrets.yaml
+secrets.json
+.env
+.env.local
+*.gpg
+
+# Config (lokal überschrieben)
+config.local.yaml
+config.local.json
+
+# Backups
+backups/
+*.bak
+*.backup
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Build-Output
+*.tar.gz
+*.tar.bz2
+*.zip
+
+# Tests
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Temp / Cache
+tmp/
+temp/
+*.tmp
+*.cache
+
+# Update-Skripte Output
+update-backups/
