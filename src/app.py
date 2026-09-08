@@ -65,7 +65,8 @@ def index():
 
 @app.route('/form')
 def form_page():
-    return "<h1>Formular</h1><p>Coming in Phase 3</p>"
+    """Eingabe-Formular für neue Items."""
+    return render_template('form.html')
 
 
 @app.route('/admin')
