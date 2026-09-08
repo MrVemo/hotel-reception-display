@@ -19,43 +19,18 @@ Start:
     # → http://0.0.0.0:5000
 """
 
-from flask import Flask, request, jsonify, session, render_template_string
+from flask import Flask, request, jsonify, session, render_template, render_template_string
 from datetime import datetime, timedelta
 import os
 
 from db import get_db, close_db, init_db, log_action
 
-app = Flask(__name__)
+app = Flask(__name__,
+            template_folder=os.path.join(os.path.dirname(__file__), 'templates'),
+            static_folder=os.path.join(os.path.dirname(__file__), 'static'))
 app.secret_key = os.environ.get('HOTEL_DISPLAY_SECRET', 'dev-secret-change-in-prod')
 
-# Templates (inline für Phase 1, später in templates/-Ordner)
-INDEX_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="de">
-<head>
-    <meta charset="UTF-8">
-    <title>Hotel Reception Display</title>
-    <style>
-        body { font-family: sans-serif; margin: 20px; background: #f5f5f5; }
-        h1 { color: #2c3e50; }
-        .item { background: white; padding: 15px; margin: 10px 0; border-radius: 8px; border-left: 5px solid #3498db; }
-        .item.urgent { border-left-color: #e74c3c; }
-        .item.done { opacity: 0.5; }
-        button { padding: 8px 16px; margin-right: 5px; cursor: pointer; }
-    </style>
-</head>
-<body>
-    <h1>🏨 Hotel Reception Display</h1>
-    <p>Backend läuft. <a href="/items">Items als JSON</a> | <a href="/form">Formular</a> | <a href="/admin">Admin</a></p>
-    <h2>Status</h2>
-    <ul>
-        <li>DB initialisiert: ✅</li>
-        <li>Endpoints: <code>/items</code>, <code>/form</code>, <code>/admin</code>, <code>/audit</code></li>
-        <li>Default-Login: Code <code>0000</code> (Admin)</li>
-    </ul>
-</body>
-</html>
-"""
+# Templates sind jetzt in src/templates/display.html etc.
 
 
 def get_current_employee():
@@ -84,7 +59,8 @@ def require_login(f):
 
 @app.route('/')
 def index():
-    return render_template_string(INDEX_TEMPLATE)
+    """Display-UI für 7" Touch-Screen."""
+    return render_template('display.html')
 
 
 @app.route('/form')

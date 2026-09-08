@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hotel Reception Display</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1a;
+            color: #f0f0f0;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #3498db;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .sort-btn, .login-btn, .admin-btn, .form-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #f0f0f0;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            min-height: 44px;
+            min-width: 44px;
+        }
+
+        .sort-btn.active {
+            background: #3498db;
+            border-color: #3498db;
+        }
+
+        .login-btn {
+            background: #27ae60;
+            border-color: #27ae60;
+        }
+
+        .items-container {
+            padding: 20px;
+            height: calc(100vh - 70px);
+            overflow-y: auto;
+        }
+
+        .item {
+            background: #2c3e50;
+            border-left: 6px solid #3498db;
+            padding: 16px 20px;
+            margin-bottom: 12px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            transition: transform 0.1s;
+        }
+
+        .item:active {
+            transform: scale(0.98);
+        }
+
+        .item.urgent {
+            border-left-color: #e74c3c;
+            background: linear-gradient(90deg, #2c3e50, #3d2c2c);
+        }
+
+        .item.overdue {
+            border-left-color: #c0392b;
+            background: linear-gradient(90deg, #2c3e50, #4a2c2c);
+        }
+
+        .item-text {
+            flex: 1;
+            font-size: 1.1rem;
+            line-height: 1.4;
+        }
+
+        .item-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-size: 0.85rem;
+            color: #95a5a6;
+            text-align: right;
+        }
+
+        .item-deadline {
+            font-weight: 600;
+            color: #ecf0f1;
+        }
+
+        .item-deadline.urgent {
+            color: #e74c3c;
+        }
+
+        .item-deadline.overdue {
+            color: #c0392b;
+            font-weight: 700;
+        }
+
+        .item-person {
+            color: #f39c12;
+            font-size: 0.9rem;
+        }
+
+        .checkbox {
+            width: 36px;
+            height: 36px;
+            border: 3px solid #7f8c8d;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.2s;
+        }
+
+        .checkbox.checked {
+            background: #27ae60;
+            border-color: #27ae60;
+        }
+
+        .checkbox.checked::after {
+            content: "✓";
+            color: white;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+            font-size: 1.2rem;
+        }
+
+        .empty-state .icon {
+            font-size: 3rem;
+            margin-bottom: 16px;
+        }
+
+        .stats {
+            font-size: 0.85rem;
+            color: #95a5a6;
+        }
+
+        .last-update {
+            font-size: 0.8rem;
+            color: #7f8c8d;
+        }
+
+        /* Swipe-to-delete indicator */
+        .swipe-hint {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #e74c3c;
+            font-size: 1.5rem;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .item.swiping .swipe-hint {
+            opacity: 1;
+        }
+
+        /* Login overlay */
+        .login-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .login-overlay.show { display: flex; }
+
+        .login-overlay h2 {
+            font-size: 1.5rem;
+        }
+
+        .code-input {
+            display: flex;
+            gap: 12px;
+        }
+
+        .code-digit {
+            width: 60px;
+            height: 80px;
+            font-size: 2.5rem;
+            text-align: center;
+            background: #2c3e50;
+            border: 2px solid #7f8c8d;
+            color: white;
+            border-radius: 8px;
+        }
+
+        .code-digit:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .login-submit {
+            background: #27ae60;
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            font-size: 1.2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            min-height: 50px;
+        }
+
+        .login-cancel {
+            background: transparent;
+            color: #95a5a6;
+            border: 1px solid #7f8c8d;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .login-error {
+            color: #e74c3c;
+            font-size: 1rem;
+            min-height: 1.5rem;
+        }
+
+        .who {
+            color: #f39c12;
+            font-weight: 600;
+            margin-right: 12px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div>
+            <h1>🏨 Hotel Reception</h1>
+            <div class="last-update" id="last-update">Lade…</div>
+        </div>
+        <div class="controls">
+            <span class="who" id="who"></span>
+            <button class="sort-btn active" id="sort-urgent" onclick="setSort('urgent')">Dringend</button>
+            <button class="sort-btn" id="sort-newest" onclick="setSort('newest')">Neueste</button>
+            <button class="form-btn" onclick="window.location='/form'">+ Neu</button>
+            <button class="admin-btn" onclick="window.location='/admin'">⚙️</button>
+            <button class="login-btn" id="login-btn" onclick="showLogin()">Login</button>
+        </div>
+    </header>
+
+    <div class="items-container" id="items-container">
+        <div class="empty-state">
+            <div class="icon">📋</div>
+            <div>Lade Items…</div>
+        </div>
+    </div>
+
+    <!-- Login Overlay -->
+    <div class="login-overlay" id="login-overlay">
+        <h2>Mitarbeiter-Login</h2>
+        <div class="code-input">
+            <input class="code-digit" type="tel" maxlength="1" data-idx="0" inputmode="numeric">
+            <input class="code-digit" type="tel" maxlength="1" data-idx="1" inputmode="numeric">
+            <input class="code-digit" type="tel" maxlength="1" data-idx="2" inputmode="numeric">
+            <input class="code-digit" type="tel" maxlength="1" data-idx="3" inputmode="numeric">
+        </div>
+        <div class="login-error" id="login-error"></div>
+        <button class="login-submit" onclick="submitLogin()">Einloggen</button>
+        <button class="login-cancel" onclick="hideLogin()">Abbrechen</button>
+    </div>
+
+    <script>
+        // ===== State =====
+        let currentSort = 'urgent';
+        let items = [];
+        let employee = null;
+
+        // ===== Initial =====
+        document.addEventListener('DOMContentLoaded', () => {
+            loadItems();
+            loadWhoAmI();
+            setInterval(loadItems, 5000); // alle 5s refresh
+        });
+
+        // ===== API: Items laden =====
+        async function loadItems() {
+            try {
+                const res = await fetch('/items');
+                const data = await res.json();
+                items = data.items || [];
+                renderItems();
+                document.getElementById('last-update').textContent =
+                    `Letzter Refresh: ${new Date().toLocaleTimeString('de-DE')}`;
+            } catch (err) {
+                console.error('Items laden fehlgeschlagen:', err);
+            }
+        }
+
+        // ===== API: Whoami =====
+        async function loadWhoAmI() {
+            try {
+                const res = await fetch('/whoami');
+                const data = await res.json();
+                if (data.logged_in) {
+                    employee = data.employee;
+                    document.getElementById('who').textContent = `👤 ${employee.name}`;
+                    document.getElementById('login-btn').textContent = 'Logout';
+                    document.getElementById('login-btn').onclick = logout;
+                } else {
+                    employee = null;
+                    document.getElementById('who').textContent = '';
+                    document.getElementById('login-btn').textContent = 'Login';
+                    document.getElementById('login-btn').onclick = showLogin;
+                }
+            } catch (err) {
+                console.error('Whoami fehlgeschlagen:', err);
+            }
+        }
+
+        // ===== Sort =====
+        function setSort(sort) {
+            currentSort = sort;
+            document.getElementById('sort-urgent').classList.toggle('active', sort === 'urgent');
+            document.getElementById('sort-newest').classList.toggle('active', sort === 'newest');
+            renderItems();
+        }
+
+        // ===== Render =====
+        function renderItems() {
+            const container = document.getElementById('items-container');
+
+            if (items.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">✨</div>
+                        <div>Keine offenen Items — alles erledigt!</div>
+                    </div>
+                `;
+                return;
+            }
+
+            // Sort
+            let sorted = [...items];
+            if (currentSort === 'urgent') {
+                sorted.sort((a, b) => {
+                    // Überfällige zuerst
+                    const now = new Date();
+                    const aOverdue = a.deadline && new Date(a.deadline) < now;
+                    const bOverdue = b.deadline && new Date(b.deadline) < now;
+                    if (aOverdue !== bOverdue) return aOverdue ? -1 : 1;
+                    // Dann nach Deadline (früheste zuerst)
+                    if (a.deadline && b.deadline) return new Date(a.deadline) - new Date(b.deadline);
+                    if (a.deadline) return -1;
+                    if (b.deadline) return 1;
+                    // Sonst nach created_at
+                    return new Date(a.created_at) - new Date(b.created_at);
+                });
+            } else {
+                sorted.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            }
+
+            container.innerHTML = sorted.map(item => {
+                const now = new Date();
+                let deadlineClass = '';
+                let itemClass = '';
+                if (item.deadline) {
+                    const dl = new Date(item.deadline);
+                    const diffMs = dl - now;
+                    if (diffMs < 0) {
+                        deadlineClass = 'overdue';
+                        itemClass = 'overdue';
+                    } else if (diffMs < 4 * 60 * 60 * 1000) {
+                        deadlineClass = 'urgent';
+                        itemClass = 'urgent';
+                    }
+                }
+                const deadlineText = item.deadline
+                    ? `Bis ${new Date(item.deadline).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`
+                    : 'Keine Frist';
+                const personText = item.assigned_to_name ? `→ ${item.assigned_to_name}` : '';
+
+                return `
+                    <div class="item ${itemClass}" data-id="${item.id}" onswipe>
+                        <div class="checkbox" onclick="markDone(${item.id}, event)"></div>
+                        <div class="item-text">${escapeHtml(item.text)}</div>
+                        <div class="item-meta">
+                            <span class="item-deadline ${deadlineClass}">${deadlineText}</span>
+                            <span class="item-person">${escapeHtml(personText)}</span>
+                            <span class="stats">von ${escapeHtml(item.created_by_name)}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Swipe-Handler anhängen
+            attachSwipeHandlers();
+        }
+
+        // ===== Mark Done =====
+        async function markDone(itemId, event) {
+            event.stopPropagation();
+            if (!employee) {
+                showLogin();
+                return;
+            }
+            try {
+                const res = await fetch(`/items/${itemId}/done`, { method: 'POST' });
+                const data = await res.json();
+                if (data.ok) {
+                    loadItems(); // Sofort refresh
+                } else {
+                    alert('Fehler: ' + (data.error || 'unknown'));
+                }
+            } catch (err) {
+                alert('Netzwerkfehler: ' + err.message);
+            }
+        }
+
+        // ===== Swipe-to-Delete (Touch) =====
+        function attachSwipeHandlers() {
+            const els = document.querySelectorAll('.item');
+            els.forEach(el => {
+                let startX = 0;
+                let startY = 0;
+                let isSwiping = false;
+
+                el.addEventListener('touchstart', (e) => {
+                    if (!employee) return;
+                    startX = e.touches[0].clientX;
+                    startY = e.touches[0].clientY;
+                    isSwiping = true;
+                }, { passive: true });
+
+                el.addEventListener('touchmove', (e) => {
+                    if (!isSwiping) return;
+                    const dx = e.touches[0].clientX - startX;
+                    const dy = e.touches[0].clientY - startY;
+                    // Nur horizontal swipes
+                    if (Math.abs(dx) > Math.abs(dy) && dx < -50) {
+                        el.classList.add('swiping');
+                        el.style.transform = `translateX(${Math.max(dx, -200)}px)`;
+                    }
+                }, { passive: true });
+
+                el.addEventListener('touchend', async (e) => {
+                    if (!isSwiping) return;
+                    isSwiping = false;
+                    const dx = e.changedTouches[0].clientX - startX;
+                    if (dx < -100) {
+                        // Confirm + delete
+                        if (confirm('Item löschen?')) {
+                            const id = el.dataset.id;
+                            await deleteItem(id);
+                        }
+                    }
+                    el.classList.remove('swiping');
+                    el.style.transform = '';
+                });
+            });
+        }
+
+        async function deleteItem(id) {
+            try {
+                const res = await fetch(`/items/${id}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.ok) loadItems();
+            } catch (err) {
+                alert('Löschen fehlgeschlagen: ' + err.message);
+            }
+        }
+
+        // ===== Login =====
+        function showLogin() {
+            document.getElementById('login-overlay').classList.add('show');
+            document.getElementById('login-error').textContent = '';
+            setTimeout(() => {
+                document.querySelector('.code-digit[data-idx="0"]').focus();
+            }, 100);
+        }
+
+        function hideLogin() {
+            document.getElementById('login-overlay').classList.remove('show');
+        }
+
+        async function submitLogin() {
+            const digits = Array.from(document.querySelectorAll('.code-digit')).map(i => i.value).join('');
+            if (digits.length !== 4) {
+                document.getElementById('login-error').textContent = 'Bitte 4 Ziffern eingeben';
+                return;
+            }
+            try {
+                const res = await fetch('/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: digits })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    hideLogin();
+                    loadWhoAmI();
+                    loadItems();
+                } else {
+                    document.getElementById('login-error').textContent = data.error || 'Login fehlgeschlagen';
+                }
+            } catch (err) {
+                document.getElementById('login-error').textContent = 'Netzwerkfehler';
+            }
+        }
+
+        async function logout() {
+            try {
+                await fetch('/logout', { method: 'POST' });
+                loadWhoAmI();
+                loadItems();
+            } catch (err) {
+                console.error('Logout fehlgeschlagen:', err);
+            }
+        }
+
+        // ===== Code-Input Auto-Advance =====
+        document.addEventListener('input', (e) => {
+            if (e.target.classList.contains('code-digit')) {
+                const idx = parseInt(e.target.dataset.idx);
+                if (e.target.value && idx < 3) {
+                    document.querySelector(`.code-digit[data-idx="${idx + 1}"]`).focus();
+                }
+                if (idx === 3 && e.target.value) {
+                    submitLogin(); // Auto-submit bei letzter Ziffer
+                }
+            }
+        });
+
+        // ===== Utilities =====
+        function escapeHtml(s) {
+            if (!s) return '';
+            return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        }
+    </script>
+</body>
+</html>
