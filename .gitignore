@@ -69,3 +69,7 @@ temp/
 
 # Update-Skripte Output
 update-backups/
+
+# Einmal-Notizen (sind nicht Teil vom Projekt)
+PUSH_INSTRUCTIONS.md
+*.notes.md
