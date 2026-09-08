@@ -118,6 +118,97 @@ def log_action(employee_id, action, item_id=None, details=None):
     db.close()
 
 
+# ===== Employee CRUD (für Admin-UI) =====
+
+def list_employees(active_only=False):
+    """Listet alle Mitarbeiter auf."""
+    db = get_db()
+    if active_only:
+        rows = db.execute(
+            "SELECT id, name, code, active, created_at, last_seen_at "
+            "FROM employees WHERE active = 1 ORDER BY name"
+        ).fetchall()
+    else:
+        rows = db.execute(
+            "SELECT id, name, code, active, created_at, last_seen_at "
+            "FROM employees ORDER BY active DESC, name"
+        ).fetchall()
+    db.close()
+    return [dict(r) for r in rows]
+
+
+def get_employee(emp_id):
+    """Holt einen einzelnen Mitarbeiter."""
+    db = get_db()
+    row = db.execute(
+        "SELECT id, name, code, active, created_at, last_seen_at "
+        "FROM employees WHERE id = ?",
+        (emp_id,)
+    ).fetchone()
+    db.close()
+    return dict(row) if row else None
+
+
+def get_employee_by_code(code):
+    """Holt einen Mitarbeiter via 4-stelligem Code."""
+    db = get_db()
+    row = db.execute(
+        "SELECT id, name, code, active FROM employees WHERE code = ?",
+        (code,)
+    ).fetchone()
+    db.close()
+    return dict(row) if row else None
+
+
+def create_employee(name, code):
+    """Legt einen neuen Mitarbeiter an. Wirft sqlite3.IntegrityError bei doppeltem Code."""
+    db = get_db()
+    cursor = db.execute(
+        "INSERT INTO employees (name, code, active) VALUES (?, ?, 1)",
+        (name, code)
+    )
+    emp_id = cursor.lastrowid
+    db.commit()
+    db.close()
+    return emp_id
+
+
+def update_employee(emp_id, name=None, code=None, active=None):
+    """Updated Mitarbeiter-Felder."""
+    db = get_db()
+    updates, params = [], []
+    if name is not None:
+        updates.append("name = ?")
+        params.append(name)
+    if code is not None:
+        updates.append("code = ?")
+        params.append(code)
+    if active is not None:
+        updates.append("active = ?")
+        params.append(1 if active else 0)
+    if not updates:
+        db.close()
+        return False
+    params.append(emp_id)
+    db.execute(f"UPDATE employees SET {', '.join(updates)} WHERE id = ?", params)
+    db.commit()
+    db.close()
+    return True
+
+
+def delete_employee(emp_id):
+    """Löscht einen Mitarbeiter. Hard delete."""
+    db = get_db()
+    db.execute("DELETE FROM employees WHERE id = ?", (emp_id,))
+    db.commit()
+    db.close()
+
+
+def generate_random_code():
+    """Generiert einen zufälligen 4-stelligen Code (1000-9999)."""
+    return str(secrets.randbelow(9000) + 1000)
+
+
 if __name__ == "__main__":
     # Direkt-Init wenn als Script aufgerufen
     init_db()

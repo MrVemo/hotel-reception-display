@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin — Hotel Reception</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1a;
+            color: #f0f0f0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #34495e;
+        }
+
+        h1 {
+            font-size: 1.6rem;
+        }
+
+        .back-btn {
+            background: #34495e;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            min-height: 44px;
+        }
+
+        .who {
+            background: #2c3e50;
+            padding: 10px 16px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            color: #f39c12;
+            font-size: 0.95rem;
+        }
+
+        .who.not-logged-in {
+            background: #3d2c2c;
+            color: #e74c3c;
+        }
+
+        /* Mitarbeiter-Liste */
+        .employees {
+            margin-bottom: 32px;
+        }
+
+        h2 {
+            font-size: 1.2rem;
+            margin-bottom: 12px;
+            color: #95a5a6;
+        }
+
+        .employee {
+            background: #2c3e50;
+            border-left: 4px solid #27ae60;
+            padding: 16px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            display: grid;
+            grid-template-columns: 1fr auto auto auto;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .employee.inactive {
+            opacity: 0.5;
+            border-left-color: #7f8c8d;
+        }
+
+        .employee-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .employee-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .employee-code {
+            font-family: 'Courier New', monospace;
+            font-size: 1.4rem;
+            color: #f39c12;
+            letter-spacing: 4px;
+        }
+
+        .employee-meta {
+            font-size: 0.85rem;
+            color: #95a5a6;
+        }
+
+        .edit-btn, .toggle-btn, .delete-btn {
+            background: transparent;
+            border: 1px solid #7f8c8d;
+            color: #f0f0f0;
+            padding: 10px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            min-height: 44px;
+            min-width: 80px;
+        }
+
+        .edit-btn:active { background: #34495e; }
+        .delete-btn { border-color: #e74c3c; color: #e74c3c; }
+        .delete-btn:active { background: #3d2c2c; }
+        .toggle-btn.off { border-color: #27ae60; color: #27ae60; }
+
+        /* Neuer Mitarbeiter Form */
+        .add-form {
+            background: #2c3e50;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr auto;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        input[type="text"], input[type="number"] {
+            padding: 14px;
+            font-size: 1rem;
+            background: #34495e;
+            border: 2px solid transparent;
+            color: #f0f0f0;
+            border-radius: 6px;
+            min-height: 44px;
+        }
+
+        input:focus { outline: none; border-color: #3498db; }
+
+        .generate-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 14px 20px;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            min-height: 44px;
+            white-space: nowrap;
+        }
+
+        .add-btn {
+            background: #27ae60;
+            color: white;
+            border: none;
+            padding: 14px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            min-height: 50px;
+        }
+
+        .add-btn:active { background: #229954; }
+        .add-btn:disabled { background: #555; cursor: not-allowed; }
+
+        .error, .success {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            display: none;
+        }
+
+        .error { background: #3d2c2c; color: #e74c3c; }
+        .success { background: #1e3d2c; color: #27ae60; }
+        .error.show, .success.show { display: block; }
+
+        .empty {
+            text-align: center;
+            padding: 30px;
+            color: #7f8c8d;
+        }
+
+        /* Login-Overlay (gleich wie form/display) */
+        .login-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .login-overlay.show { display: flex; }
+
+        .login-overlay h2 { font-size: 1.5rem; }
+
+        .code-input { display: flex; gap: 12px; }
+
+        .code-digit {
+            width: 60px;
+            height: 80px;
+            font-size: 2.5rem;
+            text-align: center;
+            background: #2c3e50;
+            border: 2px solid #7f8c8d;
+            color: white;
+            border-radius: 8px;
+        }
+
+        .code-digit:focus { outline: none; border-color: #3498db; }
+
+        .login-submit {
+            background: #27ae60;
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            font-size: 1.2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            min-height: 50px;
+        }
+
+        .login-cancel {
+            background: transparent;
+            color: #95a5a6;
+            border: 1px solid #7f8c8d;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .login-error {
+            color: #e74c3c;
+            font-size: 1rem;
+            min-height: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⚙️ Admin — Mitarbeiter</h1>
+            <button class="back-btn" onclick="window.location='/'">← Display</button>
+        </header>
+
+        <div class="who" id="who">Lade…</div>
+
+        <div class="error" id="error"></div>
+        <div class="success" id="success"></div>
+
+        <!-- Login-Pflicht Bereich (versteckt wenn eingeloggt) -->
+        <div id="main-content" style="display: none;">
+            <!-- Neuer Mitarbeiter -->
+            <div class="add-form">
+                <h2 style="margin-top: 0;">➕ Neuer Mitarbeiter</h2>
+                <div class="form-row">
+                    <input type="text" id="new-name" placeholder="Name (z.B. Maria Schmidt)" maxlength="50">
+                    <input type="text" id="new-code" placeholder="Code" maxlength="4" pattern="[0-9]{4}" inputmode="numeric">
+                    <button class="generate-btn" onclick="generateCode()">🎲 Zufall</button>
+                </div>
+                <button class="add-btn" id="add-btn" onclick="addEmployee()">✅ Anlegen</button>
+            </div>
+
+            <!-- Bestehende Mitarbeiter -->
+            <div class="employees">
+                <h2>📋 Aktive Mitarbeiter</h2>
+                <div id="employees-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Overlay -->
+    <div class="login-overlay" id="login-overlay">
+        <h2>Admin-Login</h2>
+        <div class="code-input">
+            <input class="code-digit" type="tel" maxlength="1" data-idx="0" inputmode="numeric">
+            <input class="code-digit" type="tel" maxlength="1" data-idx="1" inputmode="numeric">
+            <input class="code-digit" type="tel" maxlength="1" data-idx="2" inputmode="numeric">
+            <input class="code-digit" type="tel" maxlength="1" data-idx="3" inputmode="numeric">
+        </div>
+        <div class="login-error" id="login-error"></div>
+        <button class="login-submit" onclick="submitLogin()">Einloggen</button>
+        <button class="login-cancel" onclick="hideLogin()">Abbrechen</button>
+    </div>
+
+    <script>
+        let currentEmployee = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadWhoAmI();
+        });
+
+        async function loadWhoAmI() {
+            try {
+                const res = await fetch('/whoami');
+                const data = await res.json();
+                if (data.logged_in) {
+                    currentEmployee = data.employee;
+                    document.getElementById('who').classList.remove('not-logged-in');
+                    document.getElementById('who').textContent = `Eingeloggt als: ${currentEmployee.name}`;
+                    document.getElementById('main-content').style.display = 'block';
+                    loadEmployees();
+                } else {
+                    currentEmployee = null;
+                    document.getElementById('who').classList.add('not-logged-in');
+                    document.getElementById('who').textContent = '⚠️ Admin-Login erforderlich';
+                    document.getElementById('main-content').style.display = 'none';
+                    showLogin();
+                }
+            } catch (err) {
+                console.error('Whoami:', err);
+            }
+        }
+
+        async function loadEmployees() {
+            try {
+                const res = await fetch('/api/employees?active_only=false');
+                const data = await res.json();
+                renderEmployees(data.employees);
+            } catch (err) {
+                showError('Mitarbeiter laden fehlgeschlagen: ' + err.message);
+            }
+        }
+
+        function renderEmployees(employees) {
+            const list = document.getElementById('employees-list');
+            if (!employees || employees.length === 0) {
+                list.innerHTML = '<div class="empty">Keine Mitarbeiter angelegt</div>';
+                return;
+            }
+            list.innerHTML = employees.map(emp => {
+                const inactiveClass = emp.active ? '' : 'inactive';
+                const statusText = emp.active ? '' : ' (inaktiv)';
+                const lastSeen = emp.last_seen_at ? `Zuletzt online: ${emp.last_seen_at}` : 'Noch nie eingeloggt';
+                const toggleAction = emp.active ? 'Deaktivieren' : 'Reaktivieren';
+                const toggleClass = emp.active ? '' : 'off';
+
+                return `
+                    <div class="employee ${inactiveClass}">
+                        <div class="employee-info">
+                            <span class="employee-name">${escapeHtml(emp.name)}${statusText}</span>
+                            <span class="employee-meta">${escapeHtml(lastSeen)}</span>
+                        </div>
+                        <span class="employee-code">${emp.code}</span>
+                        <button class="edit-btn" onclick="editEmployee(${emp.id}, '${escapeAttr(emp.name)}', '${emp.code}')">✏️ Edit</button>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="toggle-btn ${toggleClass}" onclick="toggleEmployee(${emp.id}, ${!emp.active})">${emp.active ? '⏸️' : '▶️'}</button>
+                            <button class="delete-btn" onclick="deleteEmployee(${emp.id}, '${escapeAttr(emp.name)}')">🗑️</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function generateCode() {
+            try {
+                const res = await fetch('/api/employees/generate-code', { method: 'POST' });
+                const data = await res.json();
+                if (data.ok) {
+                    document.getElementById('new-code').value = data.code;
+                } else {
+                    showError(data.error || 'Code-Generierung fehlgeschlagen');
+                }
+            } catch (err) {
+                showError('Netzwerkfehler: ' + err.message);
+            }
+        }
+
+        async function addEmployee() {
+            const nameInput = document.getElementById('new-name');
+            const codeInput = document.getElementById('new-code');
+            const name = nameInput.value.trim();
+            const code = codeInput.value.trim();
+
+            if (!name) { showError('Name ist pflicht'); nameInput.focus(); return; }
+            if (!/^[0-9]{4}$/.test(code)) { showError('Code muss genau 4 Ziffern haben'); codeInput.focus(); return; }
+
+            const btn = document.getElementById('add-btn');
+            btn.disabled = true;
+            btn.textContent = 'Speichere…';
+
+            try {
+                const res = await fetch('/api/employees', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, code })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    showSuccess(`✅ Mitarbeiter "${name}" angelegt (Code: ${code})`);
+                    nameInput.value = '';
+                    codeInput.value = '';
+                    loadEmployees();
+                } else {
+                    showError(data.error || 'Fehler beim Anlegen');
+                }
+            } catch (err) {
+                showError('Netzwerkfehler: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '✅ Anlegen';
+            }
+        }
+
+        async function editEmployee(empId, oldName, oldCode) {
+            const newName = prompt(`Neuer Name für Mitarbeiter:`, oldName);
+            if (newName === null) return;
+            const newCode = prompt(`Neuer 4-stelliger Code:`, oldCode);
+            if (newCode === null) return;
+
+            const trimmedName = newName.trim();
+            const trimmedCode = newCode.trim();
+            if (!trimmedName) { showError('Name darf nicht leer sein'); return; }
+            if (!/^[0-9]{4}$/.test(trimmedCode)) { showError('Code muss 4 Ziffern haben'); return; }
+
+            try {
+                const res = await fetch(`/api/employees/${empId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: trimmedName, code: trimmedCode })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    showSuccess('✅ Aktualisiert');
+                    loadEmployees();
+                } else {
+                    showError(data.error || 'Update fehlgeschlagen');
+                }
+            } catch (err) {
+                showError('Netzwerkfehler: ' + err.message);
+            }
+        }
+
+        async function toggleEmployee(empId, newActive) {
+            try {
+                const res = await fetch(`/api/employees/${empId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ active: newActive })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    loadEmployees();
+                } else {
+                    showError(data.error || 'Toggle fehlgeschlagen');
+                }
+            } catch (err) {
+                showError('Netzwerkfehler: ' + err.message);
+            }
+        }
+
+        async function deleteEmployee(empId, name) {
+            if (!confirm(`Mitarbeiter "${name}" wirklich LÖSCHEN?\n\nAchtung: Alle zugewiesenen Items verlieren ihren Besitzer.\n\nAlternativ: Mitarbeiter lieber deaktivieren!`)) {
+                return;
+            }
+            try {
+                const res = await fetch(`/api/employees/${empId}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.ok) {
+                    showSuccess(`✅ ${name} gelöscht`);
+                    loadEmployees();
+                } else {
+                    showError(data.error || 'Löschen fehlgeschlagen');
+                }
+            } catch (err) {
+                showError('Netzwerkfehler: ' + err.message);
+            }
+        }
+
+        // ===== Utilities =====
+        function showError(msg) {
+            const box = document.getElementById('error');
+            box.textContent = msg;
+            box.classList.add('show');
+            setTimeout(() => box.classList.remove('show'), 5000);
+        }
+
+        function showSuccess(msg) {
+            const box = document.getElementById('success');
+            box.textContent = msg;
+            box.classList.add('show');
+            setTimeout(() => box.classList.remove('show'), 3000);
+        }
+
+        function escapeHtml(s) {
+            if (!s) return '';
+            return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        }
+
+        function escapeAttr(s) {
+            return escapeHtml(s).replace(/'/g, '&#039;');
+        }
+
+        // ===== Login (gleich wie andere Templates) =====
+        function showLogin() {
+            document.getElementById('login-overlay').classList.add('show');
+            document.getElementById('login-error').textContent = '';
+            setTimeout(() => {
+                document.querySelector('.code-digit[data-idx="0"]').focus();
+            }, 100);
+        }
+
+        function hideLogin() {
+            document.getElementById('login-overlay').classList.remove('show');
+        }
+
+        async function submitLogin() {
+            const digits = Array.from(document.querySelectorAll('.code-digit')).map(i => i.value).join('');
+            if (digits.length !== 4) {
+                document.getElementById('login-error').textContent = 'Bitte 4 Ziffern eingeben';
+                return;
+            }
+            try {
+                const res = await fetch('/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: digits })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    hideLogin();
+                    loadWhoAmI();
+                } else {
+                    document.getElementById('login-error').textContent = data.error || 'Login fehlgeschlagen';
+                }
+            } catch (err) {
+                document.getElementById('login-error').textContent = 'Netzwerkfehler';
+            }
+        }
+
+        document.addEventListener('input', (e) => {
+            if (e.target.classList.contains('code-digit')) {
+                const idx = parseInt(e.target.dataset.idx);
+                if (e.target.value && idx < 3) {
+                    document.querySelector(`.code-digit[data-idx="${idx + 1}"]`).focus();
+                }
+                if (idx === 3 && e.target.value) submitLogin();
+            }
+        });
+
+        // Enter im Add-Form
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && (e.target.id === 'new-name' || e.target.id === 'new-code')) {
+                e.preventDefault();
+                addEmployee();
+            }
+        });
+    </script>
+</body>
+</html>

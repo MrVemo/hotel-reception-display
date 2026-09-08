@@ -23,7 +23,12 @@ from flask import Flask, request, jsonify, session, render_template, render_temp
 from datetime import datetime, timedelta
 import os
 
-from db import get_db, close_db, init_db, log_action
+from db import (
+    get_db, close_db, init_db, log_action,
+    list_employees, get_employee, get_employee_by_code,
+    create_employee, update_employee, delete_employee,
+    generate_random_code
+)
 
 app = Flask(__name__,
             template_folder=os.path.join(os.path.dirname(__file__), 'templates'),
@@ -71,7 +76,8 @@ def form_page():
 
 @app.route('/admin')
 def admin_page():
-    return "<h1>Admin</h1><p>Coming in Phase 6</p>"
+    """Mitarbeiter-Verwaltung (nur Admin)."""
+    return render_template('admin.html')
 
 
 # ===== Auth =====
@@ -270,6 +276,101 @@ def delete_item(item_id):
     log_action(emp['id'], 'delete_item', item_id=item_id, details=item['text'][:100])
 
     return jsonify({"ok": True})
+
+
+# ===== Admin API: Mitarbeiter CRUD =====
+
+@app.route('/api/employees', methods=['GET'])
+@require_login
+def api_list_employees():
+    """Listet alle aktiven Mitarbeiter (für Dropdowns im Form)."""
+    active_only = request.args.get('active_only', 'true').lower() == 'true'
+    emps = list_employees(active_only=active_only)
+    return jsonify({"employees": emps, "count": len(emps)})
+
+
+@app.route('/api/employees', methods=['POST'])
+@require_login
+def api_create_employee():
+    """Legt einen neuen Mitarbeiter an (Name + 4-stelliger Code)."""
+    data = request.get_json() or {}
+    name = data.get('name', '').strip()
+    code = str(data.get('code', '')).strip()
+
+    if not name:
+        return jsonify({"error": "name ist pflicht"}), 400
+    if len(code) != 4 or not code.isdigit():
+        return jsonify({"error": "code muss genau 4 Ziffern haben"}), 400
+
+    # Existiert schon ein Mitarbeiter mit dem Code?
+    existing = get_employee_by_code(code)
+    if existing:
+        return jsonify({"error": f"Code {code} ist schon vergeben (an {existing['name']})"}), 409
+
+    emp_id = create_employee(name, code)
+    log_action(get_current_employee()['id'], 'create_employee', details=f"{name} ({code})")
+    return jsonify({"ok": True, "id": emp_id}), 201
+
+
+@app.route('/api/employees/<int:emp_id>', methods=['PATCH'])
+@require_login
+def api_update_employee(emp_id):
+    """Updated Mitarbeiter (Name, Code, active)."""
+    data = request.get_json() or {}
+
+    existing = get_employee(emp_id)
+    if not existing:
+        return jsonify({"error": "mitarbeiter nicht gefunden"}), 404
+
+    # Code-Validierung wenn angegeben
+    new_code = data.get('code')
+    if new_code is not None:
+        new_code = str(new_code).strip()
+        if len(new_code) != 4 or not new_code.isdigit():
+            return jsonify({"error": "code muss genau 4 Ziffern haben"}), 400
+        if new_code != existing['code']:
+            dup = get_employee_by_code(new_code)
+            if dup:
+                return jsonify({"error": f"Code {new_code} ist schon vergeben"}), 409
+
+    update_employee(
+        emp_id,
+        name=data.get('name'),
+        code=new_code if new_code is not None else None,
+        active=data.get('active')
+    )
+    log_action(get_current_employee()['id'], 'update_employee', details=f"ID {emp_id}: {data}")
+    return jsonify({"ok": True})
+
+
+@app.route('/api/employees/<int:emp_id>', methods=['DELETE'])
+@require_login
+def api_delete_employee(emp_id):
+    """Löscht einen Mitarbeiter hard (soft via active=0 wäre Alternative)."""
+    # Aktuell eingeloggten Mitarbeiter nicht löschen lassen
+    current = get_current_employee()
+    if current['id'] == emp_id:
+        return jsonify({"error": "kann sich nicht selbst löschen"}), 400
+
+    existing = get_employee(emp_id)
+    if not existing:
+        return jsonify({"error": "mitarbeiter nicht gefunden"}), 404
+
+    delete_employee(emp_id)
+    log_action(current['id'], 'delete_employee', details=f"{existing['name']} ({existing['code']})")
+    return jsonify({"ok": True})
+
+
+@app.route('/api/employees/generate-code', methods=['POST'])
+@require_login
+def api_generate_code():
+    """Generiert einen zufälligen freien 4-stelligen Code."""
+    # Bis zu 10 Versuche für eindeutigen Code
+    for _ in range(10):
+        code = generate_random_code()
+        if not get_employee_by_code(code):
+            return jsonify({"ok": True, "code": code})
+    return jsonify({"error": "kein freier code gefunden"}), 500
 
 
 # ===== Audit-Log =====
