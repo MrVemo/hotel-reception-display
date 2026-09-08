@@ -1,0 +1,6 @@
+# Production-Dependencies für Hotel Reception Display Backend
+#
+# Install mit:
+#   pip3 install -r requirements.txt
+
+Flask>=2.2,<3.1
