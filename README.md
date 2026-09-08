@@ -87,7 +87,7 @@ hotel-reception-display/
 | 2 | Display-UI (Touch-fähig) | ✅ Done |
 | 3 | Form-UI + Login-Code-Auth | ✅ Done |
 | 4 | Installer-Script + systemd-Service | ✅ Done |
-| 5 | Update-Mechanismus (Tailscale + Manifest) | ⏳ Geplant |
+| 5 | Update-Mechanismus (Tailscale + Manifest) | ✅ Done |
 | 6 | Admin-UI (Mitarbeiter-Verwaltung) | ✅ Done |
 | 7 | Test + Refactor | 🔄 Optional |
 
@@ -111,4 +111,5 @@ MIT — siehe [LICENSE](LICENSE)
 
 ## Status
 
-✅ **Phase 4 abgeschlossen** — Display ready für Hotel-Deployment, wartet auf Hardware.
+✅ **Phase 6 abgeschlossen** — Display ready für Hotel-Deployment, wartet auf Hardware.
+🔄 **Phase 5 (Auto-Update)** implementiert — aktiviert sich automatisch bei `install.sh`. Siehe [docs/UPDATER.md](docs/UPDATER.md) für Docker-PC-Setup + Tailscale-Anleitung.

@@ -114,9 +114,47 @@ systemctl daemon-reload
 systemctl enable $SERVICE_NAME
 systemctl restart $SERVICE_NAME
 
+# --- 6b. Updater-Service + Timer installieren (Phase 5) ---
+UPDATER_ENV="/etc/default/hotel-display-updater"
+if [ ! -f "$UPDATER_ENV" ]; then
+    echo "       Erstelle $UPDATER_ENV (Updater-Konfiguration)"
+    cat > "$UPDATER_ENV" <<EOF
+# Hotel Reception Display — Updater-Konfiguration (Phase 5)
+# Generiert von installer $(date '+%Y-%m-%d %H:%M:%S')
+#
+# HOTEL_DISPLAY_UPDATE_URL muss auf die Tailscale-URL des Docker-PC zeigen
+# (z.B. https://100.64.1.5/updates). HOTEL_DISPLAY_UPDATE_KEY ist die GPG-Key-ID
+# mit der das Manifest signiert wird — vor Inbetriebnahme den Public-Key
+# importieren: gpg --import docker-pc-update-key.pub
+#
+# Wartungs-Window: 03:00–05:00 Uhr (Default). HOTEL_DISPLAY_UPDATE_FORCE=1
+# überschreibt das Window (nur für manuelle Tests).
+#
+# HOTEL_DISPLAY_UPDATE_URL=https://100.x.y.z/updates
+# HOTEL_DISPLAY_UPDATE_KEY=ABCD1234EF567890
+# HOTEL_DISPLAY_UPDATE_WINDOW_START=3
+# HOTEL_DISPLAY_UPDATE_WINDOW_END=5
+# HOTEL_DISPLAY_UPDATE_FORCE=0
+EOF
+    chmod 600 "$UPDATER_ENV"
+    echo "       ⚠️  $UPDATER_ENV angelegt — BITTE URL + GPG-Key eintragen!"
+fi
+
+UPDATE_SERVICE="/etc/systemd/system/hotel-update.service"
+UPDATE_TIMER="/etc/systemd/system/hotel-update.timer"
+cp "$INSTALL_DIR/systemd/hotel-update.service" "$UPDATE_SERVICE"
+cp "$INSTALL_DIR/systemd/hotel-update.timer" "$UPDATE_TIMER"
+chmod 644 "$UPDATE_SERVICE" "$UPDATE_TIMER"
+
+systemctl daemon-reload
+systemctl enable hotel-update.timer
+systemctl start hotel-update.timer
+
+echo "       Updater-Timer aktiv (alle 6h)"
+echo ""
+
 # --- 7. Service-Status prüfen ---
 sleep 2
-echo ""
 echo "[7/7] Service-Status:"
 if systemctl is-active --quiet $SERVICE_NAME; then
     echo "       ✅ Service läuft"
@@ -140,9 +178,16 @@ echo "📍 Display:         http://$(hostname -I | awk '{print $1}'):5000/"
 echo ""
 echo "🔑 Default-Login:   Code 0000 (Admin) — BITTE ÄNDERN unter /admin"
 echo ""
+echo "🔄 Updater (Phase 5):"
+echo "   - Timer aktiv:    systemctl status hotel-update.timer"
+echo "   - Manual-Check:   sudo systemctl start hotel-update.service"
+echo "   - Force-Update:   HOTEL_DISPLAY_UPDATE_FORCE=1 sudo -E systemctl start hotel-update.service"
+echo "   - Logs:           sudo journalctl -u hotel-update -f"
+echo ""
 echo "Nächste Schritte:"
 echo "  1. Im Browser http://<Pi-IP>:5000/ öffnen"
 echo "  2. Auf /admin neuen Admin mit eigenem Code anlegen"
 echo "  3. Code 0000 deaktivieren"
 echo "  4. Mitarbeiter-Codes verteilen"
+echo "  5. (Phase 5) GPG-Public-Key vom Docker-PC importieren + $UPDATER_ENV ausfüllen"
 echo ""

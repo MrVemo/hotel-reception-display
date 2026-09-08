@@ -1,0 +1,45 @@
+[Unit]
+Description=Hotel Reception Display — Updater (einmaliger Lauf)
+Documentation=https://github.com/MrVemo/hotel-reception-display
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+# Restart nur wenn explizit gewünscht (manuell mit --force); sonst nicht.
+# (Updater läuft einmal, exit-code wird geloggt — Timer startet ihn alle 6h neu.)
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+
+# Working-Directory = Repo-Root
+WorkingDirectory=/home/pi/hotel-reception-display
+
+# Updater-Script
+ExecStart=/home/pi/hotel-reception-display/venv/bin/python3 /home/pi/hotel-reception-display/src/updater.py
+
+# Nicht bei Crash neu starten — Timer macht das
+Restart=no
+
+# Environment aus /etc/default/hotel-display + Updater-spezifisch aus /etc/default/hotel-display-updater
+EnvironmentFile=/etc/default/hotel-display
+EnvironmentFile=/etc/default/hotel-display-updater
+
+# Sicherheit: minimal
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+# ReadWritePaths: REPO_DIR + DATA_DIR (für Backups + VERSION-Datei)
+ReadWritePaths=/home/pi/hotel-reception-display/data /home/pi/hotel-reception-display/VERSION
+
+# Lock damit Timer nicht mehrere gleichzeitig startet
+# (ist hier nicht nötig — oneshot + kein overlap, aber dokumentiert)
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=hotel-updater
+
+# Timeout nach 5 Minuten (download + apply + health-check sollten <2min dauern)
+TimeoutStartSec=300

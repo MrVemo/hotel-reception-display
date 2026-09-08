@@ -1,0 +1,18 @@
+[Unit]
+Description=Hotel Reception Display — Updater Timer (alle 6h)
+Documentation=https://github.com/MrVemo/hotel-reception-display
+
+[Timer]
+# Erstmalig 10 Min nach Boot, dann alle 6h
+OnBootSec=10min
+OnUnitActiveSec=6h
+
+# Falls ein Lauf verpasst wurde (z.B. Pi war aus), beim nächsten Boot nachholen
+Persistent=true
+
+# Updater entscheidet selbst ob er im Wartungs-Window installiert —
+# außerhalb nur Manifest prüfen + loggen.
+Unit=hotel-update.service
+
+[Install]
+WantedBy=timers.target
