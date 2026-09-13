@@ -29,6 +29,16 @@
             font-weight: 600;
         }
 
+        .mode-tag {
+            background: #34495e;
+            color: #f0f0f0;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-right: 4px;
+        }
+
         .controls {
             display: flex;
             gap: 10px;
@@ -317,6 +327,7 @@
             <div class="last-update" id="last-update">Lade…</div>
         </div>
         <div class="controls">
+            <span class="mode-tag">📺 Anzeige</span>
             <span class="who" id="who"></span>
             <button class="sort-btn active" id="sort-urgent" onclick="setSort('urgent')">Dringend</button>
             <button class="sort-btn" id="sort-newest" onclick="setSort('newest')">Neueste</button>

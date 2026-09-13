@@ -220,7 +220,22 @@ def require_login(f):
 
 @app.route('/')
 def index():
-    """Display-UI für 7" Touch-Screen."""
+    """Smart-Redirect: Touch-User → /form, Desktop → /display.
+    Override via ?mode=display|form|admin"""
+    from flask import request, redirect, url_for
+
+    mode = request.args.get('mode', '').lower()
+    if mode == 'display':
+        return redirect(url_for('index'))
+    if mode == 'form':
+        return redirect(url_for('form_page'))
+    if mode == 'admin':
+        return redirect(url_for('admin_page'))
+
+    ua = request.headers.get('User-Agent', '').lower()
+    is_touch = any(t in ua for t in ['mobile', 'android', 'iphone', 'ipad', 'touch'])
+    if is_touch:
+        return redirect(url_for('form_page'))
     return render_template('display.html', branding=load_branding_config())
 
 
