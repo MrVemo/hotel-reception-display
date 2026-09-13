@@ -10,14 +10,14 @@ StartLimitBurst=3
 
 [Service]
 Type=simple
-User=pi
-Group=pi
+User=willmersdorferhof
+Group=willmersdorferhof
 
 # Working-Directory = Repo-Root (für relative Pfade + Templates)
-WorkingDirectory=/home/pi/hotel-reception-display
+WorkingDirectory=/home/willmersdorferhof/hotel-reception-display
 
 # Hauptkommando: venv-Python mit app.py
-ExecStart=/home/pi/hotel-reception-display/venv/bin/python3 /home/pi/hotel-reception-display/src/app.py
+ExecStart=/home/willmersdorferhof/hotel-reception-display/venv/bin/python3 /home/willmersdorferhof/hotel-reception-display/src/app.py
 
 # Restart-Verhalten: bei Crash neu starten, mit Verzögerung
 Restart=on-failure
@@ -31,7 +31,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full
 ProtectHome=read-only
-ReadWritePaths=/home/pi/hotel-reception-display/data
+ReadWritePaths=/home/willmersdorferhof/hotel-reception-display/data
 
 # Logging
 StandardOutput=journal

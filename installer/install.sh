@@ -26,9 +26,9 @@
 set -e
 
 # --- Config-Defaults ---
-REPO_DIR_DEFAULT="/home/pi/hotel-reception-display"
+REPO_DIR_DEFAULT="/home/willmersdorferhof/hotel-reception-display"
 SERVICE_NAME="hotel-display"
-SERVICE_USER="pi"
+SERVICE_USER="willmersdorferhof"
 REQUIRED_PACKAGES="python3 python3-pip python3-venv"
 PYTHON_MIN_VERSION="3.9"
 

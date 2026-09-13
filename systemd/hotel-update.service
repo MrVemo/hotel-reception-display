@@ -13,10 +13,10 @@ User=root
 Group=root
 
 # Working-Directory = Repo-Root
-WorkingDirectory=/home/pi/hotel-reception-display
+WorkingDirectory=/home/willmersdorferhof/hotel-reception-display
 
 # Updater-Script
-ExecStart=/home/pi/hotel-reception-display/venv/bin/python3 /home/pi/hotel-reception-display/src/updater.py
+ExecStart=/home/willmersdorferhof/hotel-reception-display/venv/bin/python3 /home/willmersdorferhof/hotel-reception-display/src/updater.py
 
 # Nicht bei Crash neu starten — Timer macht das
 Restart=no
@@ -31,7 +31,7 @@ PrivateTmp=true
 ProtectSystem=full
 ProtectHome=read-only
 # ReadWritePaths: REPO_DIR + DATA_DIR (für Backups + VERSION-Datei)
-ReadWritePaths=/home/pi/hotel-reception-display/data /home/pi/hotel-reception-display/VERSION
+ReadWritePaths=/home/willmersdorferhof/hotel-reception-display/data /home/willmersdorferhof/hotel-reception-display/VERSION
 
 # Lock damit Timer nicht mehrere gleichzeitig startet
 # (ist hier nicht nötig — oneshot + kein overlap, aber dokumentiert)

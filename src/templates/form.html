@@ -199,20 +199,71 @@
 
         .login-overlay h2 { font-size: 1.5rem; }
 
-        .code-input { display: flex; gap: 12px; }
-
-        .code-digit {
-            width: 60px;
-            height: 80px;
-            font-size: 2.5rem;
-            text-align: center;
+        .code-display {
+            display: flex;
+            gap: 16px;
+            margin: 8px 0;
+        }
+        .code-dot {
+            width: 50px;
+            height: 65px;
             background: #2c3e50;
             border: 2px solid #7f8c8d;
-            color: white;
             border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.2rem;
+            color: white;
+            transition: all 0.15s;
         }
-
-        .code-digit:focus { outline: none; border-color: #3498db; }
+        .code-dot.filled {
+            border-color: #3498db;
+            background: #34495e;
+        }
+        .code-dot.error {
+            border-color: #e74c3c;
+            background: #4a2c2c;
+            animation: shake 0.4s;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            75% { transform: translateX(8px); }
+        }
+        .touch-keyboard {
+            display: grid;
+            grid-template-columns: repeat(3, 80px);
+            grid-template-rows: repeat(4, 70px);
+            gap: 10px;
+            margin: 16px 0;
+        }
+        .kb-btn {
+            background: #34495e;
+            color: white;
+            border: 1px solid #4a6278;
+            border-radius: 8px;
+            font-size: 1.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.1s;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .kb-btn:active {
+            transform: scale(0.95);
+            background: #2c3e50;
+        }
+        .kb-btn.kb-clear,
+        .kb-btn.kb-back {
+            background: #7f8c8d;
+            font-size: 1.4rem;
+        }
+        .login-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 8px;
+        }
 
         .login-submit {
             background: #27ae60;
@@ -303,18 +354,39 @@
         </form>
     </div>
 
-    <!-- Login Overlay (gleich wie display.html) -->
+    <!-- Login Overlay mit Touch-Tastatur -->
     <div class="login-overlay" id="login-overlay">
         <h2>Mitarbeiter-Login</h2>
-        <div class="code-input">
-            <input class="code-digit" type="tel" maxlength="1" data-idx="0" inputmode="numeric">
-            <input class="code-digit" type="tel" maxlength="1" data-idx="1" inputmode="numeric">
-            <input class="code-digit" type="tel" maxlength="1" data-idx="2" inputmode="numeric">
-            <input class="code-digit" type="tel" maxlength="1" data-idx="3" inputmode="numeric">
+        <p style="color:#95a5a6; font-size:0.9rem;">4-stelligen Code eingeben:</p>
+
+        <div class="code-display">
+            <div class="code-dot" data-idx="0"></div>
+            <div class="code-dot" data-idx="1"></div>
+            <div class="code-dot" data-idx="2"></div>
+            <div class="code-dot" data-idx="3"></div>
         </div>
+
+        <div class="touch-keyboard">
+            <button class="kb-btn" data-key="1">1</button>
+            <button class="kb-btn" data-key="2">2</button>
+            <button class="kb-btn" data-key="3">3</button>
+            <button class="kb-btn" data-key="4">4</button>
+            <button class="kb-btn" data-key="5">5</button>
+            <button class="kb-btn" data-key="6">6</button>
+            <button class="kb-btn" data-key="7">7</button>
+            <button class="kb-btn" data-key="8">8</button>
+            <button class="kb-btn" data-key="9">9</button>
+            <button class="kb-btn kb-clear" data-key="clear" title="Alle löschen">⌫</button>
+            <button class="kb-btn" data-key="0">0</button>
+            <button class="kb-btn kb-back" data-key="back" title="Letzte Ziffer">←</button>
+        </div>
+
         <div class="login-error" id="login-error"></div>
-        <button class="login-submit" onclick="submitLogin()">Einloggen</button>
-        <button class="login-cancel" onclick="hideLogin()">Abbrechen</button>
+
+        <div class="login-buttons">
+            <button class="login-submit" onclick="submitLogin()">Einloggen</button>
+            <button class="login-cancel" onclick="hideLogin()">Abbrechen</button>
+        </div>
     </div>
 
     <script>
@@ -465,9 +537,7 @@
         function showLogin() {
             document.getElementById('login-overlay').classList.add('show');
             document.getElementById('login-error').textContent = '';
-            setTimeout(() => {
-                document.querySelector('.code-digit[data-idx="0"]').focus();
-            }, 100);
+            if (window.__clearCodeBuffer) window.__clearCodeBuffer();
         }
 
         function hideLogin() {
@@ -475,7 +545,7 @@
         }
 
         async function submitLogin() {
-            const digits = Array.from(document.querySelectorAll('.code-digit')).map(i => i.value).join('');
+            const digits = window.__getCodeBuffer ? window.__getCodeBuffer() : '';
             if (digits.length !== 4) {
                 document.getElementById('login-error').textContent = 'Bitte 4 Ziffern eingeben';
                 return;

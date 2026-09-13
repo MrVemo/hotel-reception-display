@@ -22,6 +22,8 @@ Start:
 from flask import Flask, request, jsonify, session, render_template, render_template_string
 from datetime import datetime, timedelta
 import os
+import json
+from pathlib import Path
 
 from db import (
     get_db, close_db, init_db, log_action,
@@ -39,6 +41,149 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_SECURE'] = os.environ.get('HOTEL_DISPLAY_HTTPS', '').lower() in ('1', 'true', 'yes')
+
+
+# ===== Branding-Config =====
+CONFIG_PATH = Path(os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    'data', 'config.json'
+))
+
+DEFAULT_BRANDING = {
+    "hotel_name": "Willmersdorfer Hof",
+    "primary_color": "#3498db",
+    "header_gradient_from": "#2c3e50",
+    "header_gradient_to": "#34495e",
+    "background_color": "#1a1a1a",
+    "urgent_color": "#e74c3c",
+    "overdue_color": "#c0392b",
+    "done_color": "#27ae60"
+}
+
+def load_branding_config():
+    """Lädt Branding-Config aus data/config.json. Fallback auf Defaults."""
+    config = DEFAULT_BRANDING.copy()
+    try:
+        if CONFIG_PATH.exists():
+            user_config = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+            config.update(user_config)
+    except Exception as e:
+        print(f"Warnung: config.json konnte nicht geladen werden: {e}")
+    return config
+
+def save_branding_config(config):
+    """Speichert Branding-Config nach data/config.json."""
+    # Nur erlaubte Keys
+    allowed = {k: v for k, v in config.items() if k in DEFAULT_BRANDING}
+    CONFIG_PATH.write_text(json.dumps(allowed, indent=2), encoding="utf-8")
+    CONFIG_PATH.chmod(0o600)
+
+# Context-Processor: branding ist in allen Templates verfügbar
+@app.context_processor
+def inject_branding():
+    return {"branding": load_branding_config(), "network": get_network_info()}
+
+
+
+# ===== Network-Info =====
+import socket
+import subprocess as sp
+
+def get_network_info():
+    """Sammelt LAN-IP, Tailscale-IP und Hostname."""
+    info = {
+        "hostname": socket.gethostname(),
+        "lan_ip": None,
+        "tailscale_ip": None,
+        "port": int(os.environ.get("HOTEL_DISPLAY_PORT", 5000))
+    }
+
+    # LAN-IP via hostname
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        info["lan_ip"] = s.getsockname()[0]
+        s.close()
+    except Exception:
+        pass
+
+    # Fallback: parse ip route
+    if not info["lan_ip"]:
+        try:
+            out = sp.check_output(["ip", "-4", "-o", "addr", "show", "scope", "global"],
+                                  text=True, timeout=2)
+            for line in out.splitlines():
+                parts = line.split()
+                if len(parts) >= 4:
+                    info["lan_ip"] = parts[3].split("/")[0]
+                    break
+        except Exception:
+            pass
+
+    # Tailscale-IP
+    try:
+        out = sp.check_output(["tailscale", "ip", "-4"], text=True, timeout=2)
+        lines = [l.strip() for l in out.splitlines() if l.strip() and not l.startswith("100.") is False]
+        if lines:
+            info["tailscale_ip"] = lines[0]
+    except Exception:
+        pass
+
+    return info
+
+
+@app.route('/api/network', methods=['GET'])
+def api_network():
+    """Liefert Netzwerk-Infos (IPs + Hostname + Port)."""
+    return jsonify(get_network_info())
+
+# ===== Branding-API =====
+@app.route('/api/branding', methods=['GET'])
+def api_get_branding():
+    """Branding-Config abrufen (öffentlich, kein Login nötig)."""
+    return jsonify(load_branding_config())
+
+@app.route('/api/branding', methods=['POST'])
+def api_set_branding():
+    """Branding-Config speichern (nur Admin)."""
+    # Admin-Check
+    emp_id = session.get('employee_id')
+    if not emp_id:
+        return jsonify({"ok": False, "error": "Nicht eingeloggt"}), 401
+    db = get_db()
+    emp = db.execute("SELECT is_admin FROM employees WHERE id = ?", (emp_id,)).fetchone()
+    db.close()
+    if not emp or not emp['is_admin']:
+        return jsonify({"ok": False, "error": "Keine Admin-Rechte"}), 403
+
+    data = request.get_json() or {}
+    save_branding_config(data)
+    log_action(emp_id, 'branding_update', json.dumps(data))
+    return jsonify({"ok": True, "config": load_branding_config()})
+
+@app.route('/api/branding/reset', methods=['POST'])
+def api_reset_branding():
+    """Branding auf Defaults zurücksetzen (nur Admin)."""
+    emp_id = session.get('employee_id')
+    if not emp_id:
+        return jsonify({"ok": False, "error": "Nicht eingeloggt"}), 401
+    db = get_db()
+    emp = db.execute("SELECT is_admin FROM employees WHERE id = ?", (emp_id,)).fetchone()
+    db.close()
+    if not emp or not emp['is_admin']:
+        return jsonify({"ok": False, "error": "Keine Admin-Rechte"}), 403
+
+    save_branding_config(DEFAULT_BRANDING)
+    log_action(emp_id, 'branding_reset', '')
+    return jsonify({"ok": True, "config": load_branding_config()})
+
+@app.route('/preview-display')
+def preview_display():
+    """Vorschau-Display mit aktuellen Branding-Settings (kein Auto-Refresh)."""
+    # Lade Defaults aus POST-Data oder aktueller Config
+    return render_template('display.html', branding=load_branding_config())
+
+
 
 # Konfigurierbarer DB-Pfad (für Tests + Production)
 DEFAULT_DB_PATH = os.path.join(
@@ -76,7 +221,7 @@ def require_login(f):
 @app.route('/')
 def index():
     """Display-UI für 7" Touch-Screen."""
-    return render_template('display.html')
+    return render_template('display.html', branding=load_branding_config())
 
 
 @app.route('/form')
@@ -88,7 +233,7 @@ def form_page():
 @app.route('/admin')
 def admin_page():
     """Mitarbeiter-Verwaltung (nur Admin)."""
-    return render_template('admin.html')
+    return render_template('admin.html', branding=load_branding_config())
 
 
 # ===== Auth =====
@@ -166,8 +311,21 @@ def get_items():
     """).fetchall()
     db.close()
 
+    items_list = []
+    for i in items:
+        item = dict(i)
+        if item.get("deadline"):
+            try:
+                dt = datetime.fromisoformat(item["deadline"])
+                item["deadline_display"] = dt.strftime("%d.%m. %H:%M")
+            except ValueError:
+                item["deadline_display"] = item["deadline"]
+        else:
+            item["deadline_display"] = None
+        items_list.append(item)
+
     return jsonify({
-        "items": [dict(i) for i in items],
+        "items": items_list,
         "count": len(items)
     })
 
