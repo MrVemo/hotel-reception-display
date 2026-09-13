@@ -177,6 +177,65 @@ def api_reset_branding():
     log_action(emp_id, 'branding_reset', '')
     return jsonify({"ok": True, "config": load_branding_config()})
 
+
+@app.route('/api/branding/logo', methods=['POST'])
+def upload_logo():
+    """Logo-Upload: nimmt base64-codiertes PNG/JPG, speichert in data/uploads/"""
+    from flask import session
+    if not session.get('employee_id'):
+        return jsonify({'error': 'not authenticated'}), 401
+
+    import base64
+    import re
+    data = request.get_json()
+    if not data or 'logo_data' not in data:
+        return jsonify({'error': 'no logo_data'}), 400
+
+    # Base64-Data-URL parsen: data:image/png;base64,XXXX
+    m = re.match(r'data:image/(png|jpeg);base64,(.+)', data['logo_data'])
+    if not m:
+        return jsonify({'error': 'invalid format (expected data:image/png;base64,...)'}), 400
+    ext = m.group(1)
+    raw = base64.b64decode(m.group(2))
+    if len(raw) > 2 * 1024 * 1024:
+        return jsonify({'error': 'file too large (max 2MB)'}), 400
+
+    UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+    logo_path = UPLOADS_DIR / f"logo.{ext}"
+    logo_path.write_bytes(raw)
+
+    # Branding-Config updaten
+    config = load_branding_config()
+    config['logo_filename'] = logo_path.name
+    save_branding_config(config)
+    return jsonify({'ok': True, 'logo_url': f'/uploads/{logo_path.name}'})
+
+
+@app.route('/api/branding/logo', methods=['DELETE'])
+def delete_logo():
+    """Logo entfernen"""
+    from flask import session
+    if not session.get('employee_id'):
+        return jsonify({'error': 'not authenticated'}), 401
+
+    config = load_branding_config()
+    logo_filename = config.pop('logo_filename', None)
+    save_branding_config(config)
+    if logo_filename:
+        for ext in ['png', 'jpg', 'jpeg']:
+            p = UPLOADS_DIR / f"logo.{ext}"
+            if p.exists():
+                p.unlink()
+    return jsonify({'ok': True})
+
+
+@app.route('/uploads/<filename>')
+def serve_upload(filename):
+    """Statische Files aus data/uploads/ ausliefern"""
+    from flask import send_from_directory
+    return send_from_directory(UPLOADS_DIR, filename)
+
+
 @app.route('/preview-display')
 def preview_display():
     """Vorschau-Display mit aktuellen Branding-Settings (kein Auto-Refresh)."""

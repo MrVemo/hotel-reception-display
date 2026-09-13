@@ -323,7 +323,84 @@
         </div>
     </div>
 
-    <!-- Login Overlay -->
+    <div id="tab-branding" class="tab-content" style="display:none;">
+        <h2 style="margin-top: 0;">🎨 Branding & Logo</h2>
+
+        <form id="branding-form">
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; color: #95a5a6; font-size: 0.9rem; margin-bottom: 6px;">
+                    🏨 Hotel-Name
+                </label>
+                <input type="text" id="hotel-name" name="hotel_name" maxlength="50" required
+                       style="width: 100%; padding: 10px; background: #2c3e50; color: #f0f0f0; border: 1px solid #7f8c8d; border-radius: 6px; font-size: 1rem;">
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; color: #95a5a6; font-size: 0.9rem; margin-bottom: 6px;">
+                    🖼️ Logo (PNG/JPG, max 2 MB)
+                </label>
+                <div id="logo-drop" style="border: 2px dashed #7f8c8d; border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; background: #2c3e50;">
+                    <div id="logo-preview" style="margin-bottom: 12px; min-height: 60px; display: flex; align-items: center; justify-content: center;">
+                        <span style="color: #7f8c8d;">📷 Klicken oder Datei hierher ziehen</span>
+                    </div>
+                    <input type="file" id="logo-input" accept="image/png,image/jpeg" style="display: none;">
+                    <button type="button" id="logo-remove-btn" onclick="removeLogo()" style="display: none; background: #e74c3c; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; margin-top: 8px;">
+                        🗑️ Logo entfernen
+                    </button>
+                </div>
+                <div style="color: #7f8c8d; font-size: 0.8rem; margin-top: 6px;">
+                    ℹ️ Empfohlen: Quadrat (z.B. 256×256) mit transparentem Hintergrund
+                </div>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; color: #95a5a6; font-size: 0.9rem; margin-bottom: 8px;">
+                    🎨 Farb-Palette (Schnellauswahl)
+                </label>
+                <div id="color-presets" style="display: flex; gap: 8px; flex-wrap: wrap;"></div>
+                <div style="color: #7f8c8d; font-size: 0.8rem; margin-top: 6px;">
+                    ℹ️ Klick auf eine Palette übernimmt alle Farben
+                </div>
+            </div>
+
+            <div id="color-fields" style="margin-bottom: 20px;"></div>
+
+            <button type="submit" class="add-btn" style="width: 100%; padding: 12px; font-size: 1rem;">
+                💾 Branding speichern
+            </button>
+            <button type="button" onclick="resetBranding()" style="background: transparent; color: #e74c3c; border: 1px solid #e74c3c; padding: 8px 16px; border-radius: 6px; cursor: pointer; margin-top: 10px; width: 100%;">
+                ↻ Auf Standard zurücksetzen
+            </button>
+        </form>
+
+        <div id="branding-status" style="margin-top: 12px;"></div>
+
+        <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #34495e;">
+            <h3 style="margin-top: 0;">👀 Live-Preview</h3>
+            <iframe id="preview-frame" src="/preview-display" style="width: 100%; height: 400px; border: 1px solid #34495e; border-radius: 8px; background: white;"></iframe>
+            <button type="button" id="btn-preview" class="add-btn" style="margin-top: 8px; width: 100%;">
+                🔄 Preview neu laden
+            </button>
+        </div>
+    </div>
+
+    <script>
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const target = btn.dataset.tab;
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+            document.querySelectorAll('.tab-content').forEach(c => {
+                if (c.id === 'tab-' + target) {
+                    c.style.display = 'block';
+                } else {
+                    c.style.display = 'none';
+                }
+            });
+        });
+    });
+    </script>
+
+        <!-- Login Overlay -->
     <!-- Login Overlay mit Touch-Tastatur -->
     <div class="login-overlay" id="login-overlay">
         <h2>Mitarbeiter-Login</h2>
@@ -362,88 +439,211 @@
     <script>
     (function() {
         const COLOR_FIELDS = [
-            {key: "primary_color", label: "Primärfarbe (Buttons, Akzente)"},
-            {key: "header_gradient_from", label: "Header-Verlauf (von)"},
-            {key: "header_gradient_to", label: "Header-Verlauf (nach)"},
-            {key: "background_color", label: "Hintergrund"},
-            {key: "urgent_color", label: "Dringend"},
-            {key: "overdue_color", label: "Überfällig"},
-            {key: "done_color", label: "Erledigt"}
+            {key: "primary_color", label: "Primärfarbe", icon: "🎯"},
+            {key: "header_gradient_from", label: "Header oben", icon: "⬆️"},
+            {key: "header_gradient_to", label: "Header unten", icon: "⬇️"},
+            {key: "background_color", label: "Hintergrund", icon: "🖼️"},
+            {key: "urgent_color", label: "Dringend", icon: "⏰"},
+            {key: "overdue_color", label: "Überfällig", icon: "⚠️"},
+            {key: "done_color", label: "Erledigt", icon: "✅"}
         ];
 
-        // Farbfelder dynamisch erstellen
-        const colorFieldsContainer = document.getElementById('color-fields');
-        COLOR_FIELDS.forEach(({key, label}) => {
-            const id = key.replace(/_/g, '-');
-            colorFieldsContainer.innerHTML += `
-                <label style="display: flex; justify-content: space-between; align-items: center; margin: 10px 0;">
-                    <span>${label}:</span>
-                    <input type="color" id="${id}" name="${key}" style="width: 50px; height: 30px; border: 1px solid #555; border-radius: 4px; cursor: pointer;">
-                </label>
-            `;
-        });
+        const COLOR_PRESETS = [
+            {name: "Klassisch Blau", icon: "🔵", colors: {primary_color: "#3498db", header_gradient_from: "#2c3e50", header_gradient_to: "#34495e", background_color: "#ecf0f1", urgent_color: "#e67e22", overdue_color: "#e74c3c", done_color: "#27ae60"}},
+            {name: "Elegant Schwarz", icon: "⚫", colors: {primary_color: "#d4af37", header_gradient_from: "#1a1a1a", header_gradient_to: "#2c2c2c", background_color: "#f8f8f8", urgent_color: "#d4af37", overdue_color: "#c0392b", done_color: "#27ae60"}},
+            {name: "Warm Orange", icon: "🟠", colors: {primary_color: "#e67e22", header_gradient_from: "#d35400", header_gradient_to: "#e67e22", background_color: "#fef5e7", urgent_color: "#c0392b", overdue_color: "#922b21", done_color: "#27ae60"}},
+            {name: "Natur Grün", icon: "🟢", colors: {primary_color: "#27ae60", header_gradient_from: "#1e8449", header_gradient_to: "#27ae60", background_color: "#eafaf1", urgent_color: "#e67e22", overdue_color: "#c0392b", done_color: "#16a085"}},
+            {name: "Royal Lila", icon: "🟣", colors: {primary_color: "#9b59b6", header_gradient_from: "#6c3483", header_gradient_to: "#9b59b6", background_color: "#f4ecf7", urgent_color: "#e67e22", overdue_color: "#c0392b", done_color: "#27ae60"}}
+        ];
 
-        // Config laden
-        fetch('/api/branding').then(r => r.json()).then(cfg => {
-            document.getElementById('hotel-name').value = cfg.hotel_name || '';
-            COLOR_FIELDS.forEach(({key}) => {
-                const el = document.getElementById(key.replace(/_/g, '-'));
-                if (el && cfg[key]) el.value = cfg[key];
+        const colorFieldsContainer = document.getElementById('color-fields');
+        if (colorFieldsContainer) {
+            COLOR_FIELDS.forEach(({key, label, icon}) => {
+                const id = key.replace(/_/g, '-');
+                colorFieldsContainer.innerHTML += `
+                    <div style="display: flex; align-items: center; gap: 12px; margin: 12px 0; padding: 10px; background: #2c3e50; border-radius: 6px;">
+                        <span style="font-size: 1.2rem;">${icon}</span>
+                        <span style="flex: 1; color: #f0f0f0;">${label}</span>
+                        <input type="color" id="${id}-picker" data-key="${key}"
+                               style="width: 40px; height: 40px; border: 1px solid #555; border-radius: 4px; cursor: pointer; background: transparent;">
+                        <input type="text" id="${id}-hex" data-key="${key}" maxlength="7" pattern="#[0-9a-fA-F]{6}"
+                               style="width: 80px; padding: 8px; background: #34495e; color: #f0f0f0; border: 1px solid #7f8c8d; border-radius: 4px; font-family: monospace; text-align: center;">
+                    </div>
+                `;
+            });
+        }
+
+        const presetContainer = document.getElementById('color-presets');
+        if (presetContainer) {
+            COLOR_PRESETS.forEach((preset) => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.style.cssText = 'background: #2c3e50; color: #f0f0f0; border: 1px solid #34495e; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem;';
+                btn.innerHTML = `${preset.icon} ${preset.name}`;
+                btn.onmouseover = () => btn.style.background = '#34495e';
+                btn.onmouseout = () => btn.style.background = '#2c3e50';
+                btn.onclick = () => applyPreset(preset.colors);
+                presetContainer.appendChild(btn);
+            });
+        }
+
+        function applyPreset(colors) {
+            Object.entries(colors).forEach(([key, value]) => {
+                const picker = document.getElementById(key.replace(/_/g, '-') + '-picker');
+                const hex = document.getElementById(key.replace(/_/g, '-') + '-hex');
+                if (picker) picker.value = value;
+                if (hex) hex.value = value;
+            });
+            showStatus('info', '✓ Palette übernommen (noch nicht gespeichert)');
+        }
+
+        // Picker <-> HEX sync
+        document.querySelectorAll('input[type="color"]').forEach(picker => {
+            picker.addEventListener('input', (e) => {
+                const key = e.target.dataset.key;
+                const hex = document.getElementById(key.replace(/_/g, '-') + '-hex');
+                if (hex) hex.value = e.target.value;
+            });
+        });
+        document.querySelectorAll('input[id$="-hex"]').forEach(hex => {
+            hex.addEventListener('input', (e) => {
+                const v = e.target.value;
+                if (/^#[0-9a-fA-F]{6}$/.test(v)) {
+                    const key = e.target.dataset.key;
+                    const picker = document.getElementById(key.replace(/_/g, '-') + '-picker');
+                    if (picker) picker.value = v;
+                }
             });
         });
 
+        function showStatus(type, msg) {
+            const el = document.getElementById('branding-status');
+            if (!el) return;
+            const colors = {
+                success: 'background:#1e3d2c;color:#27ae60;',
+                error: 'background:#3d2c2c;color:#e74c3c;',
+                info: 'background:#2c3e50;color:#3498db;'
+            };
+            el.style.cssText = (colors[type] || colors.info) + 'padding:10px;border-radius:6px;margin-top:10px;';
+            el.textContent = msg;
+            setTimeout(() => { el.textContent = ''; el.style.cssText = ''; }, 4000);
+        }
+
+        // Logo-Upload
+        const logoInput = document.getElementById('logo-input');
+        const logoDrop = document.getElementById('logo-drop');
+        const logoPreview = document.getElementById('logo-preview');
+        const logoRemoveBtn = document.getElementById('logo-remove-btn');
+
+        if (logoDrop) {
+            logoDrop.addEventListener('click', () => logoInput.click());
+            logoDrop.addEventListener('dragover', (e) => { e.preventDefault(); logoDrop.style.borderColor = '#3498db'; });
+            logoDrop.addEventListener('dragleave', () => { logoDrop.style.borderColor = '#7f8c8d'; });
+            logoDrop.addEventListener('drop', (e) => {
+                e.preventDefault();
+                logoDrop.style.borderColor = '#7f8c8d';
+                const file = e.dataTransfer.files[0];
+                if (file) handleLogoFile(file);
+            });
+        }
+        if (logoInput) {
+            logoInput.addEventListener('change', (e) => { if (e.target.files[0]) handleLogoFile(e.target.files[0]); });
+        }
+
+        function handleLogoFile(file) {
+            if (!file.type.match(/image\/(png|jpeg)/)) { showStatus('error', 'Nur PNG oder JPG erlaubt'); return; }
+            if (file.size > 2 * 1024 * 1024) { showStatus('error', 'Datei zu groß (max 2 MB)'); return; }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                if (logoPreview) logoPreview.innerHTML = `<img src="${e.target.result}" style="max-width: 150px; max-height: 150px; border-radius: 4px;">`;
+                if (logoRemoveBtn) logoRemoveBtn.style.display = 'inline-block';
+                document.getElementById('branding-form').dataset.pendingLogo = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        window.removeLogo = async function() {
+            if (!confirm('Logo wirklich entfernen?')) return;
+            try {
+                const res = await fetch('/api/branding/logo', {method: 'DELETE'});
+                if (res.ok) {
+                    if (logoPreview) logoPreview.innerHTML = '<span style="color: #7f8c8d;">📷 Klicken oder Datei hierher ziehen</span>';
+                    if (logoRemoveBtn) logoRemoveBtn.style.display = 'none';
+                    showStatus('success', '✓ Logo entfernt');
+                } else { showStatus('error', 'Fehler beim Entfernen'); }
+            } catch (err) { showStatus('error', 'Netzwerkfehler'); }
+        };
+
+        // Config laden
+        fetch('/api/branding').then(r => r.json()).then(cfg => {
+            const nameEl = document.getElementById('hotel-name');
+            if (nameEl) nameEl.value = cfg.hotel_name || '';
+            COLOR_FIELDS.forEach(({key}) => {
+                const picker = document.getElementById(key.replace(/_/g, '-') + '-picker');
+                const hex = document.getElementById(key.replace(/_/g, '-') + '-hex');
+                if (cfg[key]) {
+                    if (picker) picker.value = cfg[key];
+                    if (hex) hex.value = cfg[key];
+                }
+            });
+            if (cfg.logo_url && logoPreview) {
+                logoPreview.innerHTML = `<img src="${cfg.logo_url}" style="max-width: 150px; max-height: 150px; border-radius: 4px;">`;
+                if (logoRemoveBtn) logoRemoveBtn.style.display = 'inline-block';
+            }
+        });
+
         // Form-Submit
-        document.getElementById('branding-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const data = Object.fromEntries(formData);
-            const status = document.getElementById('branding-status');
-            status.textContent = 'Speichere...';
-            status.style.background = '#34495e';
-            try {
-                const res = await fetch('/api/branding', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(data)
+        const form = document.getElementById('branding-form');
+        if (form) {
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const pendingLogo = e.target.dataset.pendingLogo;
+                if (pendingLogo) {
+                    try {
+                        const r = await fetch('/api/branding/logo', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({logo_data: pendingLogo})
+                        });
+                        if (!r.ok) { showStatus('error', 'Logo-Upload fehlgeschlagen'); return; }
+                    } catch (err) { showStatus('error', 'Logo-Upload Netzwerkfehler'); return; }
+                }
+                const data = {hotel_name: document.getElementById('hotel-name').value};
+                COLOR_FIELDS.forEach(({key}) => {
+                    const hex = document.getElementById(key.replace(/_/g, '-') + '-hex');
+                    if (hex && hex.value) data[key] = hex.value;
                 });
-                const result = await res.json();
-                if (result.ok) {
-                    status.textContent = '✅ Gespeichert! Display lädt die neuen Farben in 5 Sekunden.';
-                    status.style.background = '#27ae60';
-                    document.getElementById('preview-frame').contentWindow.location.reload();
-                } else {
-                    status.textContent = '❌ Fehler: ' + (result.error || 'unknown');
-                    status.style.background = '#c0392b';
-                }
-            } catch (err) {
-                status.textContent = '❌ Netzwerkfehler: ' + err.message;
-                status.style.background = '#c0392b';
-            }
-        });
-
-        // Reset
-        document.getElementById('btn-reset').addEventListener('click', async () => {
-            if (!confirm('Wirklich auf Standard zurücksetzen?')) return;
-            try {
-                const res = await fetch('/api/branding/reset', {method: 'POST'});
-                const result = await res.json();
-                if (result.ok) {
-                    document.getElementById('hotel-name').value = result.config.hotel_name || '';
-                    COLOR_FIELDS.forEach(({key}) => {
-                        const el = document.getElementById(key.replace(/_/g, '-'));
-                        if (el && result.config[key]) el.value = result.config[key];
+                try {
+                    const res = await fetch('/api/branding', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
                     });
-                    document.getElementById('preview-frame').contentWindow.location.reload();
-                }
-            } catch (err) {
-                alert('Fehler: ' + err.message);
-            }
-        });
+                    if (res.ok) {
+                        showStatus('success', '✓ Gespeichert!');
+                        const f = document.getElementById('preview-frame');
+                        if (f) f.contentWindow.location.reload();
+                    } else {
+                        const r = await res.json();
+                        showStatus('error', 'Fehler: ' + (r.error || 'unbekannt'));
+                    }
+                } catch (err) { showStatus('error', 'Netzwerkfehler'); }
+            });
+        }
 
-        // Preview refresh
-        document.getElementById('btn-preview').addEventListener('click', () => {
-            document.getElementById('preview-frame').contentWindow.location.reload();
-        });
+        window.resetBranding = async function() {
+            if (!confirm('Wirklich auf Standard zurücksetzen?')) return;
+            const res = await fetch('/api/branding/reset', {method: 'POST'});
+            if (res.ok) location.reload();
+        };
+
+        const btnPreview = document.getElementById('btn-preview');
+        if (btnPreview) {
+            btnPreview.addEventListener('click', () => {
+                const f = document.getElementById('preview-frame');
+                if (f) f.contentWindow.location.reload();
+            });
+        }
     })();
     </script>
 
