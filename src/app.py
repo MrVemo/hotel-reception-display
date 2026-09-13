@@ -49,6 +49,11 @@ CONFIG_PATH = Path(os.path.join(
     'data', 'config.json'
 ))
 
+UPLOADS_DIR = Path(os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    'data', 'uploads'
+))
+
 DEFAULT_BRANDING = {
     "hotel_name": "Willmersdorfer Hof",
     "primary_color": "#3498db",
@@ -158,7 +163,7 @@ def api_set_branding():
 
     data = request.get_json() or {}
     save_branding_config(data)
-    log_action(emp_id, 'branding_update', json.dumps(data))
+    log_action(emp_id, 'branding_update', details=json.dumps(data))
     return jsonify({"ok": True, "config": load_branding_config()})
 
 @app.route('/api/branding/reset', methods=['POST'])
@@ -174,7 +179,7 @@ def api_reset_branding():
         return jsonify({"ok": False, "error": "Keine Admin-Rechte"}), 403
 
     save_branding_config(DEFAULT_BRANDING)
-    log_action(emp_id, 'branding_reset', '')
+    log_action(emp_id, 'branding_reset', details='')
     return jsonify({"ok": True, "config": load_branding_config()})
 
 

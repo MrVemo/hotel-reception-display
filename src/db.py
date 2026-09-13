@@ -53,10 +53,18 @@ def init_db(path=None):
             name TEXT NOT NULL,
             code TEXT NOT NULL UNIQUE,
             active INTEGER NOT NULL DEFAULT 1,
+            is_admin INTEGER NOT NULL DEFAULT 0,
             created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
             last_seen_at TEXT
         )
     """)
+
+    # Idempotente Migration für bestehende DBs (vor 2026-09-13)
+    cursor.execute("PRAGMA table_info(employees)")
+    cols = [row[1] for row in cursor.fetchall()]
+    if 'is_admin' not in cols:
+        cursor.execute("ALTER TABLE employees ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0")
+        cursor.execute("UPDATE employees SET is_admin = 1 WHERE id = 1 OR name = 'Admin'")
 
     # Items-Tabelle
     cursor.execute("""
