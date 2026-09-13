@@ -180,13 +180,15 @@ def api_reset_branding():
 
 @app.route('/api/branding/logo', methods=['POST'])
 def upload_logo():
-    """Logo-Upload: nimmt base64-codiertes PNG/JPG, speichert in data/uploads/"""
+    """Logo-Upload: nimmt base64-codiertes PNG/JPG, resized automatisch auf max 256x256"""
     from flask import session
     if not session.get('employee_id'):
         return jsonify({'error': 'not authenticated'}), 401
 
     import base64
     import re
+    from io import BytesIO
+
     data = request.get_json()
     if not data or 'logo_data' not in data:
         return jsonify({'error': 'no logo_data'}), 400
@@ -197,18 +199,62 @@ def upload_logo():
         return jsonify({'error': 'invalid format (expected data:image/png;base64,...)'}), 400
     ext = m.group(1)
     raw = base64.b64decode(m.group(2))
-    if len(raw) > 2 * 1024 * 1024:
-        return jsonify({'error': 'file too large (max 2MB)'}), 400
+    if len(raw) > 10 * 1024 * 1024:
+        return jsonify({'error': 'file too large (max 10MB vor Resize)'}), 400
 
     UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
-    logo_path = UPLOADS_DIR / f"logo.{ext}"
-    logo_path.write_bytes(raw)
+
+    # Auto-Resize mit PIL (Pillow) — max 256x256, behält Aspect Ratio
+    original_size = len(raw)
+    try:
+        from PIL import Image
+        img = Image.open(BytesIO(raw))
+
+        # Konvertiere zu RGBA für PNG-Kompatibilität
+        if img.mode not in ('RGB', 'RGBA'):
+            img = img.convert('RGBA' if ext == 'png' else 'RGB')
+
+        # Resize nur wenn größer als 256x256
+        MAX_SIZE = 256
+        if img.width > MAX_SIZE or img.height > MAX_SIZE:
+            img.thumbnail((MAX_SIZE, MAX_SIZE), Image.LANCZOS)
+
+        # Speichern als PNG (komprimiert, mit Transparenz)
+        logo_path = UPLOADS_DIR / "logo.png"
+        if ext == 'jpeg':
+            # JPG hat keine Transparenz — RGB
+            if img.mode == 'RGBA':
+                # Weißer Hintergrund für JPG
+                bg = Image.new('RGB', img.size, (255, 255, 255))
+                bg.paste(img, mask=img.split()[3])
+                img = bg
+            img.save(logo_path, 'PNG', optimize=True)
+        else:
+            img.save(logo_path, 'PNG', optimize=True)
+
+        logo_url = '/uploads/logo.png'
+        resized = True
+    except ImportError:
+        # PIL nicht verfügbar — speichere original
+        logo_path = UPLOADS_DIR / f"logo.{ext}"
+        logo_path.write_bytes(raw)
+        logo_url = f'/uploads/{logo_path.name}'
+        resized = False
+
+    new_size = logo_path.stat().st_size
 
     # Branding-Config updaten
     config = load_branding_config()
     config['logo_filename'] = logo_path.name
     save_branding_config(config)
-    return jsonify({'ok': True, 'logo_url': f'/uploads/{logo_path.name}'})
+    return jsonify({
+        'ok': True,
+        'logo_url': logo_url,
+        'resized': resized,
+        'original_kb': round(original_size / 1024, 1),
+        'new_kb': round(new_size / 1024, 1),
+        'max_size': 256
+    })
 
 
 @app.route('/api/branding/logo', methods=['DELETE'])

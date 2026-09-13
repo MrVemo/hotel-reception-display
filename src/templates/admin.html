@@ -606,6 +606,12 @@
                             body: JSON.stringify({logo_data: pendingLogo})
                         });
                         if (!r.ok) { showStatus('error', 'Logo-Upload fehlgeschlagen'); return; }
+                        const rdata = await r.json();
+                        if (rdata.resized) {
+                            showStatus('info', `Logo resized: ${rdata.original_kb}KB → ${rdata.new_kb}KB (max ${rdata.max_size}px)`);
+                        } else {
+                            showStatus('info', `Logo gespeichert (${rdata.new_kb}KB)`);
+                        }
                     } catch (err) { showStatus('error', 'Logo-Upload Netzwerkfehler'); return; }
                 }
                 const data = {hotel_name: document.getElementById('hotel-name').value};
