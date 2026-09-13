@@ -29,7 +29,7 @@ set -e
 REPO_DIR_DEFAULT="/home/willmersdorferhof/hotel-reception-display"
 SERVICE_NAME="hotel-display"
 SERVICE_USER="willmersdorferhof"
-REQUIRED_PACKAGES="python3 python3-pip python3-venv"
+REQUIRED_PACKAGES="python3 python3-pip python3-venv python3-pil"  # python3-pil für Logo-Resize
 PYTHON_MIN_VERSION="3.9"
 
 # --- Root-Check ---

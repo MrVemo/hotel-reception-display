@@ -4,3 +4,4 @@
 #   pip3 install -r requirements.txt
 
 Flask>=2.2,<3.1
+Pillow>=10.0,<12.0  # für Logo-Auto-Resize
