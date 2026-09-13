@@ -458,6 +458,133 @@
     </script>
 
 <script>
+    // ===== Login & Mitarbeiter laden =====
+    let currentEmployee = null;
+    let employees = [];
+
+    async function loadWhoAmI() {
+        try {
+            const res = await fetch('/whoami');
+            const data = await res.json();
+            if (data.employee) {
+                currentEmployee = data.employee;
+                document.getElementById('who').innerHTML =
+                    `Eingeloggt als <strong>${escapeHtml(data.employee.name)}</strong> ` +
+                    `<button class="logout-btn" onclick="logout()">Abmelden</button>`;
+                document.getElementById('main-content').style.display = 'block';
+                document.getElementById('login-overlay').classList.remove('show');
+                if (typeof window.__clearCodeBuffer === 'function') window.__clearCodeBuffer();
+                loadEmployees();
+            } else {
+                currentEmployee = null;
+                document.getElementById('who').textContent = 'Nicht eingeloggt';
+                document.getElementById('main-content').style.display = 'none';
+                // ShowLogin nur automatisch wenn keine Aktion läuft
+                // (sonst: User kann garnicht erst auf Login-Button klicken)
+            }
+        } catch (err) {
+            console.error('whoami-Fehler:', err);
+            document.getElementById('who').textContent = 'Fehler beim Laden';
+        }
+    }
+
+    function showLogin() {
+        document.getElementById('login-overlay').classList.add('show');
+        if (typeof window.__clearCodeBuffer === 'function') window.__clearCodeBuffer();
+    }
+
+    function hideLogin() {
+        document.getElementById('login-overlay').classList.remove('show');
+        if (typeof window.__clearCodeBuffer === 'function') window.__clearCodeBuffer();
+    }
+
+    async function submitLogin() {
+        const code = (typeof window.__getCodeBuffer === 'function') ? window.__getCodeBuffer() : '';
+        if (code.length !== 4) {
+            document.getElementById('login-error').textContent = 'Bitte 4 Ziffern eingeben';
+            return;
+        }
+        try {
+            const res = await fetch('/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code })
+            });
+            const data = await res.json();
+            if (data.ok) {
+                hideLogin();
+                loadWhoAmI();
+            } else {
+                document.getElementById('login-error').textContent = data.error || 'Login fehlgeschlagen';
+            }
+        } catch (err) {
+            document.getElementById('login-error').textContent = 'Netzwerkfehler';
+        }
+    }
+
+    async function logout() {
+        try {
+            await fetch('/logout', { method: 'POST' });
+            loadWhoAmI();
+        } catch (err) {
+            console.error('Logout fehlgeschlagen:', err);
+        }
+    }
+
+    async function loadEmployees() {
+        const list = document.getElementById('employees-list');
+        list.innerHTML = '<div style="color:#95a5a6;">Lade…</div>';
+        try {
+            const res = await fetch('/api/employees');
+            if (!res.ok) {
+                list.innerHTML = '<div style="color:#e74c3c;">Fehler beim Laden (Status ' + res.status + ')</div>';
+                return;
+            }
+            const data = await res.json();
+            employees = data.employees || [];
+            if (employees.length === 0) {
+                list.innerHTML = '<div style="color:#95a5a6;">Noch keine Mitarbeiter angelegt</div>';
+                return;
+            }
+            list.innerHTML = employees.map(emp => `
+                <div class="employee-row">
+                    <div>
+                        <strong>${escapeHtml(emp.name)}</strong>
+                        <span style="color:#7f8c8d; margin-left:8px;">Code: ${emp.code}</span>
+                        ${emp.is_admin ? '<span class="admin-badge">Admin</span>' : ''}
+                    </div>
+                    <div>
+                        <button class="edit-btn" onclick="editEmployee(${emp.id})">✏️</button>
+                        <button class="delete-btn" onclick="deleteEmployee(${emp.id})">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        } catch (err) {
+            console.error('Mitarbeiter laden fehlgeschlagen:', err);
+            list.innerHTML = '<div style="color:#e74c3c;">Netzwerkfehler</div>';
+        }
+    }
+
+    function escapeHtml(s) {
+        if (!s) return '';
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                       .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    }
+
+    // Login-Button muss showLogin() triggern
+    document.addEventListener('DOMContentLoaded', () => {
+        // Falls eingeloggt → direkt wer anzeigen; sonst Login-Overlay zeigen
+        loadWhoAmI();
+    });
+
+    // Falls who-text "Nicht eingeloggt" ist, klick darauf zeigt Login
+    document.getElementById('who').addEventListener('click', () => {
+        if (!currentEmployee) showLogin();
+    });
+</script>
+
+
+<script>
         // ===== Touch-Tastatur (Login) =====
         (function() {
             let codeBuffer = '';
