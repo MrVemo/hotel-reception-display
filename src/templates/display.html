@@ -516,6 +516,20 @@
             attachSwipeHandlers();
         }
 
+        // ===== Toast =====
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.textContent = message;
+            const bg = type === 'error' ? '#e74c3c' : '#27ae60';
+            toast.style.cssText = `
+                position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+                background: ${bg}; color: white; padding: 10px 20px; border-radius: 6px;
+                z-index: 9999; font-size: 1rem; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            `;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2500);
+        }
+
         // ===== Mark Done =====
         async function markDone(itemId, event) {
             event.stopPropagation();
@@ -528,11 +542,12 @@
                 const data = await res.json();
                 if (data.ok) {
                     loadItems(); // Sofort refresh
+                    showToast('✓ Erledigt');
                 } else {
-                    alert('Fehler: ' + (data.error || 'unknown'));
+                    showToast('Fehler: ' + (data.error || 'unknown'), 'error');
                 }
             } catch (err) {
-                alert('Netzwerkfehler: ' + err.message);
+                showToast('Netzwerkfehler: ' + err.message, 'error');
             }
         }
 
@@ -583,9 +598,14 @@
             try {
                 const res = await fetch(`/items/${id}`, { method: 'DELETE' });
                 const data = await res.json();
-                if (data.ok) loadItems();
+                if (data.ok) {
+                    loadItems();
+                    showToast('✓ Gelöscht');
+                } else {
+                    showToast('Fehler: ' + (data.error || 'unknown'), 'error');
+                }
             } catch (err) {
-                alert('Löschen fehlgeschlagen: ' + err.message);
+                showToast('Löschen fehlgeschlagen: ' + err.message, 'error');
             }
         }
 
@@ -742,7 +762,6 @@
                 .then(info => {
                     const port = info.port || 5000;
                     const lanEl = document.getElementById('ip-lan');
-                    const vpnEl = document.getElementById('ip-vpn');
                     const hostEl = document.getElementById('ip-host');
                     if (lanEl) {
                         lanEl.textContent = info.lan_ip
@@ -768,18 +787,6 @@
                     console.error('Copy failed:', err);
                 });
             }
-        }
-
-        function showToast(message) {
-            const toast = document.createElement('div');
-            toast.textContent = message;
-            toast.style.cssText = `
-                position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-                background: #27ae60; color: white; padding: 8px 16px; border-radius: 6px;
-                z-index: 9999; font-size: 0.9rem;
-            `;
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 2000);
         }
 
         // Initial + alle 60 Sekunden refreshen (Tailscale-IP kann sich ändern)
