@@ -334,6 +334,11 @@ DEFAULT_DB_PATH = os.path.join(
     'data', 'hotel-display.db'
 )
 
+# Repo-Top-Level: VERSION + CHANGELOG.md (fuer /api/changelog)
+REPO_ROOT = Path(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+VERSION_PATH = REPO_ROOT / "VERSION"
+CHANGELOG_PATH = REPO_ROOT / "CHANGELOG.md"
+
 # Templates sind jetzt in src/templates/display.html etc.
 
 
@@ -787,12 +792,34 @@ def api_delete_handover(note_id):
     return jsonify({"ok": True})
 
 
+# ===== Changelog =====
+
+@app.route('/api/changelog', methods=['GET'])
+@require_login
+def api_changelog():
+    """Liefert aktuelle Version (aus VERSION-File) und den Inhalt von CHANGELOG.md.
+    Reine Leseinfo, kein extra Admin-Check noetig (nichts Sensibles drin)."""
+    try:
+        version = VERSION_PATH.read_text(encoding="utf-8").strip()
+    except Exception:
+        version = "unbekannt"
+    try:
+        changelog = CHANGELOG_PATH.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        changelog = "(CHANGELOG.md nicht gefunden)"
+    except Exception as e:
+        changelog = f"(Fehler beim Lesen: {e})"
+    return jsonify({
+        "version": version,
+        "changelog": changelog
+    })
+
+
 # ===== Audit-Log =====
 
 @app.route('/audit', methods=['GET'])
 @require_login
 def get_audit():
-    """Audit-Log abrufen (neueste zuerst)."""
     limit = request.args.get('limit', 100, type=int)
     db = get_db()
     entries = db.execute("""
