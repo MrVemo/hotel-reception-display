@@ -175,7 +175,9 @@ def api_set_branding():
         return jsonify({"ok": False, "error": "Keine Admin-Rechte"}), 403
 
     data = request.get_json() or {}
-    save_branding_config(data)
+    config = load_branding_config()
+    config.update(data)
+    save_branding_config(config)
     log_action(emp_id, 'branding_update', details=json.dumps(data))
     return jsonify({"ok": True, "config": load_branding_config()})
 
@@ -200,8 +202,14 @@ def api_reset_branding():
 def upload_logo():
     """Logo-Upload: nimmt base64-codiertes PNG/JPG, resized automatisch auf max 256x256"""
     from flask import session
-    if not session.get('employee_id'):
+    emp_id = session.get('employee_id')
+    if not emp_id:
         return jsonify({'error': 'not authenticated'}), 401
+    db = get_db()
+    emp = db.execute("SELECT is_admin FROM employees WHERE id = ?", (emp_id,)).fetchone()
+    db.close()
+    if not emp or not emp['is_admin']:
+        return jsonify({'error': 'Keine Admin-Rechte'}), 403
 
     import base64
     import re
@@ -241,19 +249,14 @@ def upload_logo():
 
         # Speichern als PNG (komprimiert, mit Transparenz)
         logo_path = UPLOADS_DIR / "logo.png"
-        if ext == 'jpeg':
-            # JPG hat keine Transparenz — RGB
-            if img.mode == 'RGBA':
-                # Weißer Hintergrund für JPG
-                bg = Image.new('RGB', img.size, (255, 255, 255))
-                bg.paste(img, mask=img.split()[3])
-                img = bg
-            img.save(logo_path, 'PNG', optimize=True)
-        else:
-            img.save(logo_path, 'PNG', optimize=True)
+        if ext == 'jpeg' and img.mode == 'RGBA':
+            # JPG hat keine Transparenz — weißer Hintergrund
+            bg = Image.new('RGB', img.size, (255, 255, 255))
+            bg.paste(img, mask=img.split()[3])
+            img = bg
+        img.save(logo_path, 'PNG', optimize=True)
 
         logo_url = '/uploads/logo.png'
-        resized = True
     except ImportError:
         # PIL nicht verfügbar — speichere original
         logo_path = UPLOADS_DIR / f"logo.{ext}"
@@ -281,8 +284,14 @@ def upload_logo():
 def delete_logo():
     """Logo entfernen"""
     from flask import session
-    if not session.get('employee_id'):
+    emp_id = session.get('employee_id')
+    if not emp_id:
         return jsonify({'error': 'not authenticated'}), 401
+    db = get_db()
+    emp = db.execute("SELECT is_admin FROM employees WHERE id = ?", (emp_id,)).fetchone()
+    db.close()
+    if not emp or not emp['is_admin']:
+        return jsonify({'error': 'Keine Admin-Rechte'}), 403
 
     config = load_branding_config()
     logo_filename = config.pop('logo_filename', None)

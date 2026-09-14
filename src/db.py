@@ -109,8 +109,8 @@ def init_db(path=None):
     if cursor.fetchone()[0] == 0:
         admin_code = "0000"
         cursor.execute(
-            "INSERT INTO employees (name, code, active) VALUES (?, ?, ?)",
-            ("Admin", admin_code, 1)
+            "INSERT INTO employees (name, code, active, is_admin) VALUES (?, ?, ?, ?)",
+            ("Admin", admin_code, 1, 1)
         )
         db.commit()
         print(f"[db] Default-Admin angelegt mit Code: {admin_code}")
