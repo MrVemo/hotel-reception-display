@@ -364,6 +364,25 @@ def require_login(f):
     return wrapper
 
 
+def require_admin(f):
+    """Decorator: Endpoint nur fuer Admins.
+
+    Gibt 401 wenn nicht eingeloggt, 403 wenn eingeloggt aber kein Admin.
+    Setzt require_login voraus.
+    """
+    from functools import wraps
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        emp = get_current_employee()
+        if not emp:
+            return jsonify({"error": "not authenticated"}), 401
+        # get_current_employee() liefert sqlite3.Row (kein .get), daher Index-Zugriff
+        if not emp['is_admin']:
+            return jsonify({"error": "Keine Admin-Rechte"}), 403
+        return f(*args, **kwargs)
+    return wrapper
+
+
 # ===== Root + Static Pages =====
 
 @app.route('/')
@@ -607,7 +626,12 @@ def mark_done(item_id):
 @app.route('/items/<int:item_id>', methods=['DELETE'])
 @require_login
 def delete_item(item_id):
-    """Item löschen (hard delete)."""
+    """Item löschen (hard delete).
+
+    Audit-Log-Eintraege mit item_id auf NULL setzen BEVOR wir das Item loeschen,
+    sonst schlaegt die FK-Constraint audit_log.item_id -> items.id fehl (RESTRICT).
+    Wir verlieren damit nicht die History — die Details-Spalte enthaelt den Text.
+    """
     emp = get_current_employee()
 
     db = get_db()
@@ -616,11 +640,14 @@ def delete_item(item_id):
         db.close()
         return jsonify({"error": "not found"}), 404
 
+    # Audit-Log fuer dieses Item entkoppeln (item_id -> NULL),
+    # Employee-FK und Action-Details bleiben erhalten.
+    db.execute("UPDATE audit_log SET item_id = NULL WHERE item_id = ?", (item_id,))
     db.execute("DELETE FROM items WHERE id = ?", (item_id,))
     db.commit()
     db.close()
 
-    log_action(emp['id'], 'delete_item', item_id=item_id, details=item['text'][:100])
+    log_action(emp['id'], 'delete_item', item_id=None, details=f"#{item_id}: {item['text'][:100]}")
 
     return jsonify({"ok": True})
 
@@ -628,7 +655,7 @@ def delete_item(item_id):
 # ===== Admin API: Mitarbeiter CRUD =====
 
 @app.route('/api/employees', methods=['GET'])
-@require_login
+@require_admin
 def api_list_employees():
     """Listet alle aktiven Mitarbeiter (für Dropdowns im Form)."""
     active_only = request.args.get('active_only', 'true').lower() == 'true'
@@ -637,7 +664,7 @@ def api_list_employees():
 
 
 @app.route('/api/employees', methods=['POST'])
-@require_login
+@require_admin
 def api_create_employee():
     """Legt einen neuen Mitarbeiter an (Name + 4-stelliger Code)."""
     data = request.get_json() or {}
@@ -660,7 +687,7 @@ def api_create_employee():
 
 
 @app.route('/api/employees/<int:emp_id>', methods=['PATCH'])
-@require_login
+@require_admin
 def api_update_employee(emp_id):
     """Updated Mitarbeiter (Name, Code, active)."""
     data = request.get_json() or {}
@@ -691,7 +718,7 @@ def api_update_employee(emp_id):
 
 
 @app.route('/api/employees/<int:emp_id>', methods=['DELETE'])
-@require_login
+@require_admin
 def api_delete_employee(emp_id):
     """Löscht einen Mitarbeiter hard (soft via active=0 wäre Alternative)."""
     # Aktuell eingeloggten Mitarbeiter nicht löschen lassen
@@ -709,7 +736,7 @@ def api_delete_employee(emp_id):
 
 
 @app.route('/api/employees/generate-code', methods=['POST'])
-@require_login
+@require_admin
 def api_generate_code():
     """Generiert einen zufälligen freien 4-stelligen Code."""
     # Bis zu 10 Versuche für eindeutigen Code
