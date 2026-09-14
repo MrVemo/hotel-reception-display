@@ -117,39 +117,36 @@ Damit der 7"-Touchscreen direkt beim Boot das Display zeigt:
 sudo apt install -y chromium-browser unclutter
 ```
 
-### Kiosk-Service
+### Kiosk-Start (Openbox-Autostart, KEIN systemd-Service)
+
+Auf dem produktiven Display-Pi läuft Chromium **nicht** als systemd-Service,
+sondern wird über die Openbox-Autostart-Datei des Kiosk-Login-Users gestartet
+(Desktop-Autologin via `raspi-config nonint do_boot_behaviour B4` → X-Session
+startet automatisch → Openbox führt beim Session-Start
+`~/.config/openbox/autostart` des eingeloggten Users aus). Es gibt daher
+absichtlich **kein** `hotel-kiosk.service` — ein `systemctl restart
+hotel-kiosk.service` läuft ins Leere (das Deploy-Script
+`kiko-display-deploy.sh` behandelt das defensiv und überspringt den Neustart
+statt zu failen).
 
 ```bash
-sudo nano /etc/systemd/system/hotel-kiosk.service
+nano ~/.config/openbox/autostart
 ```
 
-```ini
-[Unit]
-Description=Hotel Display — Chromium Kiosk
-After=hotel-display.service
-After=graphical.target
-Wants=graphical.target
-
-[Service]
-User=pi
-Environment=DISPLAY=:0
-ExecStart=/usr/bin/chromium-browser \
+```bash
+chromium-browser \
   --noerrdialogs \
   --disable-infobars \
   --kiosk \
   --touch-events=enabled \
-  http://localhost:5000/
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=graphical.target
+  http://localhost:5000/ &
 ```
 
-```bash
-sudo systemctl enable hotel-kiosk
-sudo systemctl start hotel-kiosk
-```
+Neustart des Kiosks (z.B. nach einem hängenden Zustand) läuft über das
+Neustarten der X-Session bzw. gezieltes Beenden/Neustarten des
+Chromium-Prozesses selbst (`pkill chromium-browser`, Openbox startet ihn
+per Autostart beim nächsten Login/Reboot nicht automatisch neu — dafür
+bräuchte es einen Watchdog, aktuell nicht vorhanden).
 
 > **Hinweis:** Lite-OS hat keinen X-Server. Wenn Chromium-Kiosk gewünscht ist, **Raspberry Pi OS with desktop** verwenden (statt Lite).
 
