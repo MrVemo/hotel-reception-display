@@ -46,7 +46,7 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         }
         .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
-        .brand img { max-height: 44px; max-width: 140px; object-fit: contain; }
+        .brand img { max-height: 64px; max-width: 220px; object-fit: contain; }
         .brand h1 { margin: 0; font-size: 1.25rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .brand .subtitle { font-size: 0.8rem; color: #95a5a6; }
 
@@ -111,6 +111,7 @@
             .items-grid { grid-template-columns: 1fr; gap: 10px; }
             main { padding: 12px; }
             header.site-header { padding: 10px 12px; }
+            .brand img { max-height: 40px; max-width: 130px; }
         }
 
         .item-card {
@@ -243,7 +244,7 @@
         <button class="btn" id="sort-urgent" onclick="setSort('urgent')">Dringend</button>
         <button class="btn" id="sort-newest" onclick="setSort('newest')">Neueste</button>
         <a class="btn primary" href="/form" target="_blank" rel="noopener">+ Neu</a>
-        <a class="btn ghost" href="/display" title="Kiosk-Anzeige (Touch)">📺 Kiosk</a>
+        <a class="btn ghost" href="/?view=display" title="Kiosk-Anzeige (Touch)">📺 Kiosk</a>
         <button class="btn success" id="login-btn" onclick="showLogin()">Login</button>
     </div>
 </header>
@@ -291,7 +292,7 @@
     <span style="margin: 0 8px; color:#34495e;">·</span>
     <span id="ip-host" style="color:#7f8c8d;">…</span>
     <span style="margin: 0 8px; color:#34495e;">·</span>
-    <a href="/display" style="color:#7f8c8d;">Kiosk-Anzeige</a>
+    <a href="/?view=display" style="color:#7f8c8d;">Kiosk-Anzeige</a>
     <span style="margin: 0 8px; color:#34495e;">·</span>
     <a href="/admin" style="color:#7f8c8d;">Admin</a>
 </div>
