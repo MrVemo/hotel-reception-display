@@ -264,7 +264,7 @@
     <div id="items-container">
         <div class="empty-state">
             <div class="icon">📋</div>
-            <div>Lade Items…</div>
+            <div>Lade Aufgaben…</div>
         </div>
     </div>
 </main>
@@ -273,7 +273,7 @@
 <div class="modal-backdrop" id="login-modal">
     <div class="modal">
         <h2>Mitarbeiter-Login</h2>
-        <p>4-stelligen Code eingeben, um Items abhaken oder löschen zu können.</p>
+        <p>4-stelligen Code eingeben, um Aufgaben abhaken oder löschen zu können.</p>
         <form id="login-form" onsubmit="return submitLogin(event)">
             <div class="form-row">
                 <label for="code-input">Code</label>
@@ -486,8 +486,8 @@
             container.innerHTML = `
                 <div class="empty-state">
                     <div class="icon">✨</div>
-                    <div class="title">Keine offenen Items</div>
-                    <div>Alles erledigt — du kannst neue Items über <a href="/form" target="_blank" style="color:var(--primary);text-decoration:underline;">+ Neu</a> hinzufügen.</div>
+                    <div class="title">Keine offenen Aufgaben</div>
+                    <div>Alles erledigt — du kannst neue Aufgaben über <a href="/form" target="_blank" style="color:var(--primary);text-decoration:underline;">+ Neu</a> hinzufügen.</div>
                 </div>
             `;
             statsLine.textContent = '';
