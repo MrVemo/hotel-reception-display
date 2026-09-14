@@ -370,7 +370,9 @@ def index():
 
     view = request.args.get('view', '').lower()
     if view == 'display':
-        return redirect(url_for('index'))
+        # Direkt rendern statt redirect(url_for('index')), sonst Endlosschleife
+        # (Redirect auf / ohne view= würde bei Touch-UA wieder nach /form springen).
+        return render_template('display.html', branding=load_branding_config())
     if view == 'form':
         return redirect(url_for('form_page'))
     if view == 'admin':
