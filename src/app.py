@@ -730,9 +730,44 @@ def get_audit():
 
 # ===== Error-Handler =====
 
+NOT_FOUND_HTML = """<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="refresh" content="5;url=/">
+<title>Seite nicht gefunden</title>
+<style>
+  body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+       background:#1a1a1a;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+       text-align:center;gap:18px;padding:20px;box-sizing:border-box;}
+  .icon{font-size:3rem;}
+  .path{color:#7f8c8d;font-size:0.9rem;font-family:monospace;word-break:break-all;}
+  a.btn{background:#2c3e50;color:#f0f0f0;border:1px solid #34495e;padding:16px 32px;border-radius:8px;
+        text-decoration:none;font-size:1.15rem;}
+  .hint{font-size:0.8rem;color:#555;}
+</style>
+</head>
+<body>
+  <div class="icon">🔍</div>
+  <div>Seite nicht gefunden</div>
+  <div class="path">{{ path }}</div>
+  <a class="btn" href="/">Zurück zur Anzeige</a>
+  <div class="hint">Automatische Weiterleitung in 5 Sekunden…</div>
+</body>
+</html>"""
+
+
 @app.errorhandler(404)
 def not_found(e):
-    return jsonify({"error": "not found", "path": request.path}), 404
+    """Kiosk-Modus hat keine Adressleiste/Zurueck-Button - ein toter Link darf
+    hier nie eine nackte JSON-Fehlerseite ohne Ausweg zeigen. API-Aufrufe
+    (fetch()) bekommen weiterhin JSON, echte Seitennavigation eine
+    Fehlerseite mit Button + Auto-Redirect."""
+    if request.path.startswith('/api/') or \
+       request.accept_mimetypes['application/json'] >= request.accept_mimetypes['text/html']:
+        return jsonify({"error": "not found", "path": request.path}), 404
+    return render_template_string(NOT_FOUND_HTML, path=request.path), 404
 
 
 @app.errorhandler(500)
