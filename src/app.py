@@ -62,7 +62,8 @@ DEFAULT_BRANDING = {
     "background_color": "#1a1a1a",
     "urgent_color": "#e74c3c",
     "overdue_color": "#c0392b",
-    "done_color": "#27ae60"
+    "done_color": "#27ae60",
+    "logo_filename": None  # wenn gesetzt, wird logo_url automatisch generiert
 }
 
 def load_branding_config():
@@ -74,6 +75,13 @@ def load_branding_config():
             config.update(user_config)
     except Exception as e:
         print(f"Warnung: config.json konnte nicht geladen werden: {e}")
+
+    # logo_filename → logo_url ableiten
+    if config.get("logo_filename"):
+        config["logo_url"] = f"/uploads/{config['logo_filename']}"
+    else:
+        config["logo_url"] = None
+
     return config
 
 def save_branding_config(config):
