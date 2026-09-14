@@ -705,6 +705,78 @@ def api_generate_code():
     return jsonify({"error": "kein freier code gefunden"}), 500
 
 
+# ===== Handover (Schicht-Übergabe-Log) =====
+
+@app.route('/api/handover', methods=['GET'])
+def api_list_handover():
+    """Letzte N Handover-Einträge, neueste zuerst. Öffentlich (kein Login nötig,
+    damit's auch ohne Login gelesen werden kann)."""
+    limit = request.args.get('limit', 50, type=int)
+    limit = max(1, min(limit, 500))  # bounded, sonst DOS-Risiko
+    db = get_db()
+    rows = db.execute("""
+        SELECT h.id, h.text, h.created_at, h.employee_id,
+               e.name AS employee_name
+        FROM handover_notes h
+        JOIN employees e ON h.employee_id = e.id
+        ORDER BY h.created_at DESC, h.id DESC
+        LIMIT ?
+    """, (limit,)).fetchall()
+    db.close()
+    return jsonify({
+        "notes": [dict(r) for r in rows],
+        "count": len(rows)
+    })
+
+
+@app.route('/api/handover', methods=['POST'])
+@require_login
+def api_create_handover():
+    """Neuen Handover-Eintrag anlegen. Jeder eingeloggte Mitarbeiter, kein Admin nötig."""
+    data = request.get_json() or {}
+    text = (data.get('text') or '').strip()
+    if not text:
+        return jsonify({"error": "text ist pflicht"}), 400
+    if len(text) > 5000:
+        return jsonify({"error": "text zu lang (max 5000 zeichen)"}), 400
+
+    emp = get_current_employee()
+    db = get_db()
+    cursor = db.execute(
+        "INSERT INTO handover_notes (employee_id, text) VALUES (?, ?)",
+        (emp['id'], text)
+    )
+    note_id = cursor.lastrowid
+    db.commit()
+    db.close()
+
+    log_action(emp['id'], 'create_handover', details=text[:200])
+    return jsonify({"ok": True, "id": note_id}), 201
+
+
+@app.route('/api/handover/<int:note_id>', methods=['DELETE'])
+@require_login
+def api_delete_handover(note_id):
+    """Handover-Eintrag löschen — nur Admin (Tippfehler-Korrekturen)."""
+    emp = get_current_employee()
+    db = get_db()
+    if not emp['is_admin']:
+        db.close()
+        return jsonify({"error": "Keine Admin-Rechte"}), 403
+
+    note = db.execute("SELECT id, text FROM handover_notes WHERE id = ?", (note_id,)).fetchone()
+    if not note:
+        db.close()
+        return jsonify({"error": "not found"}), 404
+
+    db.execute("DELETE FROM handover_notes WHERE id = ?", (note_id,))
+    db.commit()
+    db.close()
+
+    log_action(emp['id'], 'delete_handover', details=f"#{note_id}: {note['text'][:100]}")
+    return jsonify({"ok": True})
+
+
 # ===== Audit-Log =====
 
 @app.route('/audit', methods=['GET'])

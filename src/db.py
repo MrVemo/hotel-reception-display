@@ -4,6 +4,7 @@ SQLite Datenbank-Setup für Hotel Reception Display.
 Schema:
 - employees: Mitarbeiter mit 4-stelligen Login-Codes
 - items: Aufgaben/Items mit Deadline, Text, Status
+- handover_notes: Schicht-Übergabe-Notizen (fortlaufendes Log)
 - audit_log: Alle Aktionen (Eintragen, Abhaken, Edit, Delete)
 
 Verwendung:
@@ -97,10 +98,22 @@ def init_db(path=None):
         )
     """)
 
+    # Handover-Notizen-Tabelle (Schicht-Übergabe-Log)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS handover_notes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            employee_id INTEGER NOT NULL,
+            text TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+            FOREIGN KEY (employee_id) REFERENCES employees(id)
+        )
+    """)
+
     # Indizes für Performance
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_items_done ON items(done_at)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_items_deadline ON items(deadline)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_audit_ts ON audit_log(ts)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_handover_created ON handover_notes(created_at)")
 
     db.commit()
 
