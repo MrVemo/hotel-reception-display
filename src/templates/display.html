@@ -326,8 +326,9 @@
             <h1 style="display:flex;align-items:center;gap:12px;">
                 {% if branding.logo_url %}
                 <img src="{{ branding.logo_url }}" alt="Logo" style="height:48px;max-width:120px;object-fit:contain;">
-                {% endif %}
+                {% else %}
                 <span>🏨 {{ branding.hotel_name }}</span>
+                {% endif %}
             </h1>
             <div class="last-update" id="last-update">Lade…</div>
         </div>

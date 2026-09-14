@@ -236,10 +236,7 @@
 <header class="site-header">
     <div class="brand">
         <img id="logo" src="{{ branding.logo_url or '' }}" alt="" style="display:{{ 'inline-block' if branding.logo_url else 'none' }};">
-        <div>
-            <h1 id="hotel-name">🏨 {{ branding.hotel_name }}</h1>
-            <div class="subtitle">Live-Anzeige · Web</div>
-        </div>
+        <div id="hotel-name" style="display:{{ 'none' if branding.logo_url else 'block' }};">🏨 {{ branding.hotel_name }}</div>
     </div>
     <div class="controls">
         <span class="who-badge" id="who-badge" style="display:none;">👤 <span id="who-name"></span></span>
@@ -439,13 +436,25 @@
         if (cfg.urgent_color) root.style.setProperty('--urgent', cfg.urgent_color);
         if (cfg.overdue_color) root.style.setProperty('--overdue', cfg.overdue_color);
         if (cfg.done_color) root.style.setProperty('--done', cfg.done_color);
-        if (cfg.hotel_name) document.getElementById('hotel-name').textContent = '🏨 ' + cfg.hotel_name;
+        // Logo und Hotel-Name schließen sich gegenseitig aus — bei Logo kein Emoji+Name-Spam
         const logo = document.getElementById('logo');
-        if (cfg.logo_url) {
-            logo.src = cfg.logo_url;
-            logo.style.display = 'inline-block';
-        } else {
-            logo.style.display = 'none';
+        const hotelName = document.getElementById('hotel-name');
+        const hasLogo = !!cfg.logo_url;
+        if (logo) {
+            if (hasLogo) {
+                logo.src = cfg.logo_url;
+                logo.style.display = 'inline-block';
+            } else {
+                logo.style.display = 'none';
+            }
+        }
+        if (hotelName) {
+            if (hasLogo) {
+                hotelName.style.display = 'none';
+            } else {
+                hotelName.style.display = '';
+                if (cfg.hotel_name) hotelName.textContent = '🏨 ' + cfg.hotel_name;
+            }
         }
     }
 
