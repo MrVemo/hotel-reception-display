@@ -229,8 +229,10 @@ def upload_logo():
 
         # Resize nur wenn größer als 256x256
         MAX_SIZE = 256
+        resized = False
         if img.width > MAX_SIZE or img.height > MAX_SIZE:
             img.thumbnail((MAX_SIZE, MAX_SIZE), Image.LANCZOS)
+            resized = True
 
         # Speichern als PNG (komprimiert, mit Transparenz)
         logo_path = UPLOADS_DIR / "logo.png"
