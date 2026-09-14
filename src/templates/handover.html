@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Schicht-Übergabe — {{ branding.hotel_name }}</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: {{ branding.background_color }};
+            color: #f0f0f0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: linear-gradient(135deg, {{ branding.header_gradient_from }}, {{ branding.header_gradient_to }});
+            padding: 10px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid {{ branding.primary_color }};
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        h1 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        h1 img { height: 44px; max-width: 120px; object-fit: contain; }
+
+        .mode-tag {
+            background: #34495e;
+            color: #f0f0f0;
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #f0f0f0;
+            padding: 7px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.88rem;
+            min-height: 40px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .nav-btn:hover { background: rgba(255, 255, 255, 0.18); }
+        .nav-btn.primary { background: {{ branding.primary_color }}; border-color: {{ branding.primary_color }}; }
+        .nav-btn.danger { background: transparent; border-color: {{ branding.overdue_color }}; color: {{ branding.overdue_color }}; }
+
+        .who { color: #f39c12; font-weight: 600; margin-right: 8px; font-size: 0.9rem; }
+
+        /* ===== Hauptbereich ===== */
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 14px;
+            gap: 14px;
+            max-width: 1100px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .card {
+            background: #2c3e50;
+            border-radius: 8px;
+            padding: 14px 16px;
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #ecf0f1;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .card-title .meta { color: #95a5a6; font-size: 0.82rem; font-weight: 400; }
+
+        /* ===== Notizen-Liste ===== */
+        .notes-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 55vh;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+        .note {
+            background: #34495e;
+            border-left: 4px solid {{ branding.primary_color }};
+            border-radius: 6px;
+            padding: 10px 12px;
+            position: relative;
+        }
+        .note-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 10px;
+            margin-bottom: 6px;
+            font-size: 0.82rem;
+            color: #95a5a6;
+            flex-wrap: wrap;
+        }
+        .note-author { color: #f39c12; font-weight: 600; }
+        .note-time { font-family: ui-monospace, "SF Mono", Consolas, monospace; }
+        .note-text {
+            color: #ecf0f1;
+            font-size: 0.95rem;
+            line-height: 1.45;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .note-delete {
+            background: transparent;
+            border: 1px solid transparent;
+            color: #7f8c8d;
+            font-size: 0.85rem;
+            padding: 3px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 6px;
+        }
+        .note-delete:hover {
+            border-color: {{ branding.overdue_color }};
+            color: {{ branding.overdue_color }};
+        }
+        .empty-state {
+            text-align: center;
+            padding: 30px;
+            color: #7f8c8d;
+            font-size: 1rem;
+        }
+        .empty-state .icon { font-size: 2.5rem; margin-bottom: 10px; }
+
+        /* ===== Eingabe-Bereich (nur sichtbar wenn eingeloggt) ===== */
+        .composer {
+            display: none;
+        }
+        .composer.show { display: block; }
+
+        .composer textarea {
+            width: 100%;
+            min-height: 100px;
+            background: #1a252f;
+            border: 1px solid #4a6278;
+            color: #f0f0f0;
+            border-radius: 6px;
+            padding: 10px 12px;
+            font-family: inherit;
+            font-size: 1rem;
+            line-height: 1.4;
+            resize: vertical;
+        }
+        .composer textarea:focus { outline: none; border-color: {{ branding.primary_color }}; }
+
+        .composer-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 10px;
+        }
+        .composer-status {
+            flex: 1;
+            color: #95a5a6;
+            font-size: 0.85rem;
+            align-self: center;
+        }
+        .composer-status.error { color: {{ branding.overdue_color }}; }
+        .composer-status.success { color: {{ branding.done_color }}; }
+
+        .submit-btn {
+            background: {{ branding.done_color }};
+            color: white;
+            border: none;
+            padding: 10px 22px;
+            font-size: 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            min-height: 44px;
+            font-weight: 600;
+        }
+        .submit-btn:active { transform: scale(0.98); }
+        .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .login-hint {
+            text-align: center;
+            color: #95a5a6;
+            padding: 16px;
+            font-size: 0.95rem;
+        }
+
+        /* ===== Login-Overlay (kopiert von display.html für Konsistenz) ===== */
+        .login-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .login-overlay.show { display: flex; }
+        .login-overlay h2 { font-size: 1.4rem; }
+        .code-display { display: flex; gap: 14px; margin: 6px 0; }
+        .code-dot {
+            width: 44px; height: 58px;
+            background: #2c3e50;
+            border: 2px solid #7f8c8d;
+            border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 2rem; color: white;
+        }
+        .code-dot.filled { border-color: {{ branding.primary_color }}; background: #34495e; }
+        .code-dot.error {
+            border-color: {{ branding.overdue_color }};
+            background: #4a2c2c;
+            animation: shake 0.4s;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            75% { transform: translateX(8px); }
+        }
+        .touch-keyboard {
+            display: grid;
+            grid-template-columns: repeat(3, 70px);
+            grid-template-rows: repeat(4, 60px);
+            gap: 8px;
+            margin: 12px 0;
+        }
+        .kb-btn {
+            background: #34495e;
+            color: white;
+            border: 1px solid #4a6278;
+            border-radius: 6px;
+            font-size: 1.6rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .kb-btn:active { transform: scale(0.95); background: #2c3e50; }
+        .kb-btn.kb-clear, .kb-btn.kb-back { background: #7f8c8d; font-size: 1.3rem; }
+        .login-buttons { display: flex; gap: 10px; margin-top: 6px; }
+        .login-submit {
+            background: {{ branding.done_color }}; color: white; border: none;
+            padding: 12px 28px; font-size: 1.1rem; border-radius: 6px; cursor: pointer; min-height: 48px;
+        }
+        .login-cancel {
+            background: transparent; color: #95a5a6; border: 1px solid #7f8c8d;
+            padding: 10px 18px; border-radius: 6px; cursor: pointer;
+        }
+        .login-error { color: {{ branding.overdue_color }}; font-size: 0.95rem; min-height: 1.4rem; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div>
+        <h1>
+            {% if branding.logo_url %}
+            <img src="{{ branding.logo_url }}" alt="Logo">
+            {% endif %}
+            📋 Übergabe
+        </h1>
+        <div style="color:#95a5a6; font-size:0.78rem; margin-top:2px;">{{ branding.hotel_name }}</div>
+    </div>
+    <div class="controls">
+        <span class="mode-tag">📋 Übergabe</span>
+        <span class="who" id="who"></span>
+        <a class="nav-btn primary" href="/">📺 Anzeige</a>
+        <a class="nav-btn" href="/form">+ Neu</a>
+        <a class="nav-btn" href="/admin">⚙️</a>
+        <a class="nav-btn" href="/display-web" target="_blank" rel="noopener">🌐 Web</a>
+        <button class="nav-btn danger" id="login-btn" onclick="showLogin()">Login</button>
+    </div>
+</header>
+
+<main>
+    <div class="card">
+        <div class="card-title">
+            <span>📜 Letzte Notizen</span>
+            <span class="meta" id="last-update">Lade…</span>
+        </div>
+        <div class="notes-list" id="notes-list">
+            <div class="empty-state">
+                <div class="icon">📋</div>
+                <div>Lade Notizen…</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card composer" id="composer">
+        <div class="card-title">
+            <span>✍️ Neue Notiz für die nächste Schicht</span>
+        </div>
+        <form id="handover-form" onsubmit="return submitNote(event)">
+            <textarea id="note-text" placeholder="Was soll die nächste Schicht wissen? z.B. 'Gast Maier Suite 312 beschwert sich über laute Klimaanlage, bitte Techniker informieren.'" maxlength="5000" autofocus></textarea>
+            <div class="composer-actions">
+                <span class="composer-status" id="composer-status"></span>
+                <button type="button" class="nav-btn" onclick="clearComposer()">Leeren</button>
+                <button type="submit" class="submit-btn" id="submit-btn">Absenden</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="card login-hint" id="login-hint">
+        Bitte einloggen, um eine neue Notiz für die nächste Schicht zu hinterlassen.
+    </div>
+</main>
+
+<!-- Login Overlay -->
+<div class="login-overlay" id="login-overlay">
+    <h2>Mitarbeiter-Login</h2>
+    <p style="color:#95a5a6; font-size:0.9rem;">4-stelligen Code eingeben:</p>
+    <div class="code-display">
+        <div class="code-dot" data-idx="0"></div>
+        <div class="code-dot" data-idx="1"></div>
+        <div class="code-dot" data-idx="2"></div>
+        <div class="code-dot" data-idx="3"></div>
+    </div>
+    <div class="touch-keyboard">
+        <button class="kb-btn" data-key="1">1</button>
+        <button class="kb-btn" data-key="2">2</button>
+        <button class="kb-btn" data-key="3">3</button>
+        <button class="kb-btn" data-key="4">4</button>
+        <button class="kb-btn" data-key="5">5</button>
+        <button class="kb-btn" data-key="6">6</button>
+        <button class="kb-btn" data-key="7">7</button>
+        <button class="kb-btn" data-key="8">8</button>
+        <button class="kb-btn" data-key="9">9</button>
+        <button class="kb-btn kb-clear" data-key="clear">⌫</button>
+        <button class="kb-btn" data-key="0">0</button>
+        <button class="kb-btn kb-back" data-key="back">←</button>
+    </div>
+    <div class="login-error" id="login-error"></div>
+    <div class="login-buttons">
+        <button class="login-submit" onclick="submitLogin()">Einloggen</button>
+        <button class="login-cancel" onclick="hideLogin()">Abbrechen</button>
+    </div>
+</div>
+
+<script>
+    // ===== State =====
+    let employee = null;
+    let pollHandle = null;
+    let codeBuffer = '';
+
+    // ===== Init =====
+    document.addEventListener('DOMContentLoaded', () => {
+        loadNotes();
+        loadWhoAmI();
+        pollHandle = setInterval(loadNotes, 8000); // alle 8s — Log aendert sich selten
+        setupTouchKeyboard();
+    });
+
+    // ===== API: Notes laden =====
+    async function loadNotes() {
+        try {
+            const res = await fetch('/api/handover?limit=100');
+            const data = await res.json();
+            renderNotes(data.notes || []);
+            document.getElementById('last-update').textContent =
+                `Letzter Refresh: ${new Date().toLocaleTimeString('de-DE')}`;
+        } catch (err) {
+            console.error('Handover laden fehlgeschlagen:', err);
+            document.getElementById('last-update').textContent = 'Refresh-Fehler';
+        }
+    }
+
+    function renderNotes(notes) {
+        const list = document.getElementById('notes-list');
+        if (notes.length === 0) {
+            list.innerHTML = `
+                <div class="empty-state">
+                    <div class="icon">📋</div>
+                    <div>Noch keine Übergabe-Notizen.</div>
+                    <div style="margin-top:6px; font-size:0.85rem;">Log dich ein und schreib die erste.</div>
+                </div>
+            `;
+            return;
+        }
+        const canDelete = !!employee; // Server prueft Admin, Client nur UX
+        const isAdmin = employee && employee.is_admin;
+        list.innerHTML = notes.map(n => {
+            const dt = formatTimestamp(n.created_at);
+            const delBtn = isAdmin
+                ? `<button class="note-delete" onclick="deleteNote(${n.id})" title="Admin: Notiz loeschen">🗑</button>`
+                : '';
+            return `
+                <div class="note" data-id="${n.id}">
+                    <div class="note-head">
+                        <span class="note-author">👤 ${escapeHtml(n.employee_name)}</span>
+                        <span class="note-time">${dt}</span>
+                        ${delBtn}
+                    </div>
+                    <div class="note-text">${escapeHtml(n.text)}</div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function formatTimestamp(ts) {
+        if (!ts) return '';
+        // SQLite 'YYYY-MM-DD HH:MM:SS' in localtime -> Date parsen
+        const m = ts.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+        if (!m) return ts;
+        const [, y, mo, d, h, mi, s] = m;
+        const dt = new Date(+y, +mo - 1, +d, +h, +mi, +(s || 0));
+        const now = new Date();
+        const sameDay = dt.toDateString() === now.toDateString();
+        if (sameDay) {
+            return `heute ${String(h).padStart(2, '0')}:${String(mi).padStart(2, '0')}`;
+        }
+        // gestern?
+        const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
+        if (dt.toDateString() === yesterday.toDateString()) {
+            return `gestern ${String(h).padStart(2, '0')}:${String(mi).padStart(2, '0')}`;
+        }
+        return `${d}.${mo}. ${String(h).padStart(2, '0')}:${String(mi).padStart(2, '0')}`;
+    }
+
+    // ===== Note absenden =====
+    async function submitNote(event) {
+        event.preventDefault();
+        if (!employee) {
+            showLogin();
+            return false;
+        }
+        const ta = document.getElementById('note-text');
+        const text = ta.value.trim();
+        if (!text) {
+            setStatus('Bitte Text eingeben', 'error');
+            return false;
+        }
+        const btn = document.getElementById('submit-btn');
+        btn.disabled = true;
+        try {
+            const res = await fetch('/api/handover', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text })
+            });
+            const data = await res.json();
+            if (data.ok) {
+                ta.value = '';
+                setStatus('✓ Notiz gespeichert', 'success');
+                loadNotes();
+            } else {
+                setStatus('Fehler: ' + (data.error || 'unbekannt'), 'error');
+            }
+        } catch (err) {
+            setStatus('Netzwerkfehler: ' + err.message, 'error');
+        } finally {
+            btn.disabled = false;
+            ta.focus();
+        }
+        return false;
+    }
+
+    function clearComposer() {
+        document.getElementById('note-text').value = '';
+        document.getElementById('composer-status').textContent = '';
+        document.getElementById('note-text').focus();
+    }
+
+    function setStatus(msg, kind) {
+        const el = document.getElementById('composer-status');
+        el.textContent = msg;
+        el.className = 'composer-status' + (kind ? ' ' + kind : '');
+        if (kind === 'success') {
+            setTimeout(() => { el.textContent = ''; el.className = 'composer-status'; }, 3000);
+        }
+    }
+
+    // ===== Admin: Note loeschen =====
+    async function deleteNote(id) {
+        if (!confirm('Notiz wirklich loeschen? Das ist nur fuer Tippfehler-Korrekturen gedacht.')) return;
+        try {
+            const res = await fetch(`/api/handover/${id}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.ok) {
+                loadNotes();
+            } else {
+                alert('Fehler: ' + (data.error || 'unbekannt'));
+            }
+        } catch (err) {
+            alert('Loeschen fehlgeschlagen: ' + err.message);
+        }
+    }
+
+    // ===== Whoami =====
+    async function loadWhoAmI() {
+        try {
+            const res = await fetch('/whoami');
+            const data = await res.json();
+            const composer = document.getElementById('composer');
+            const hint = document.getElementById('login-hint');
+            const loginBtn = document.getElementById('login-btn');
+            const whoEl = document.getElementById('who');
+            if (data.logged_in) {
+                employee = data.employee;
+                employee.is_admin = !!data.employee.is_admin;
+                whoEl.textContent = `👤 ${employee.name}`;
+                composer.classList.add('show');
+                hint.style.display = 'none';
+                loginBtn.textContent = 'Logout';
+                loginBtn.classList.remove('danger');
+                loginBtn.onclick = logout;
+            } else {
+                employee = null;
+                whoEl.textContent = '';
+                composer.classList.remove('show');
+                hint.style.display = 'block';
+                loginBtn.textContent = 'Login';
+                loginBtn.classList.add('danger');
+                loginBtn.onclick = showLogin;
+            }
+            renderNotes(currentNotes);
+        } catch (err) {
+            console.error('Whoami fehlgeschlagen:', err);
+        }
+    }
+
+    let currentNotes = [];
+    const _origRender = renderNotes;
+    renderNotes = function(notes) {
+        currentNotes = notes;
+        _origRender(notes);
+    };
+
+    // ===== Login / Logout =====
+    function showLogin() {
+        document.getElementById('login-overlay').classList.add('show');
+        document.getElementById('login-error').textContent = '';
+        codeBuffer = '';
+        updateCodeDisplay();
+    }
+    function hideLogin() {
+        document.getElementById('login-overlay').classList.remove('show');
+        codeBuffer = '';
+        updateCodeDisplay();
+    }
+    async function submitLogin() {
+        if (codeBuffer.length !== 4) {
+            document.getElementById('login-error').textContent = 'Bitte 4 Ziffern eingeben';
+            return;
+        }
+        try {
+            const res = await fetch('/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code: codeBuffer })
+            });
+            const data = await res.json();
+            if (data.ok) {
+                hideLogin();
+                loadWhoAmI();
+                loadNotes();
+            } else {
+                document.getElementById('login-error').textContent = data.error || 'Login fehlgeschlagen';
+                shakeCodeDots();
+            }
+        } catch (err) {
+            document.getElementById('login-error').textContent = 'Netzwerkfehler';
+        }
+    }
+    async function logout() {
+        try {
+            await fetch('/logout', { method: 'POST' });
+            loadWhoAmI();
+        } catch (err) {
+            console.error('Logout fehlgeschlagen:', err);
+        }
+    }
+
+    // ===== Touch-Tastatur =====
+    function setupTouchKeyboard() {
+        document.querySelectorAll('.kb-btn').forEach(btn => {
+            const handler = (e) => {
+                e.preventDefault();
+                const key = btn.dataset.key;
+                if (key === 'clear') {
+                    codeBuffer = '';
+                    const err = document.getElementById('login-error');
+                    if (err) err.textContent = '';
+                } else if (key === 'back') {
+                    codeBuffer = codeBuffer.slice(0, -1);
+                } else if (/^[0-9]$/.test(key)) {
+                    if (codeBuffer.length < 4) {
+                        codeBuffer += key;
+                        if (codeBuffer.length === 4) {
+                            setTimeout(() => { if (typeof submitLogin === 'function') submitLogin(); }, 200);
+                        }
+                    }
+                }
+                updateCodeDisplay();
+            };
+            btn.addEventListener('click', handler);
+            btn.addEventListener('touchstart', handler, { passive: false });
+        });
+    }
+    function updateCodeDisplay() {
+        document.querySelectorAll('.code-dot').forEach((dot, i) => {
+            dot.classList.toggle('filled', i < codeBuffer.length);
+            dot.classList.remove('error');
+            dot.textContent = codeBuffer[i] || '';
+        });
+    }
+    function shakeCodeDots() {
+        document.querySelectorAll('.code-dot').forEach(dot => {
+            dot.classList.add('error');
+            setTimeout(() => dot.classList.remove('error'), 400);
+        });
+    }
+
+    // ===== Utils =====
+    function escapeHtml(s) {
+        if (!s) return '';
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    }
+</script>
+
+</body>
+</html>

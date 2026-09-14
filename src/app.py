@@ -399,6 +399,12 @@ def admin_page():
     return render_template('admin.html', branding=load_branding_config())
 
 
+@app.route('/handover')
+def handover_page():
+    """Schicht-Übergabe-Log (Touch-optimiert, mit Login-Overlay)."""
+    return render_template('handover.html', branding=load_branding_config())
+
+
 # ===== Auth =====
 
 @app.route('/login', methods=['POST'])
@@ -450,7 +456,11 @@ def whoami():
     if emp:
         return jsonify({
             "logged_in": True,
-            "employee": {"id": emp['id'], "name": emp['name']}
+            "employee": {
+                "id": emp['id'],
+                "name": emp['name'],
+                "is_admin": bool(emp['is_admin'])
+            }
         })
     return jsonify({"logged_in": False})
 
