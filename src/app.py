@@ -76,9 +76,14 @@ def load_branding_config():
     except Exception as e:
         print(f"Warnung: config.json konnte nicht geladen werden: {e}")
 
-    # logo_filename → logo_url ableiten
+    # logo_filename → logo_url ableiten, mit File-mtime als Cache-Buster
     if config.get("logo_filename"):
-        config["logo_url"] = f"/uploads/{config['logo_filename']}"
+        logo_path = UPLOADS_DIR / config["logo_filename"]
+        if logo_path.exists():
+            mtime = int(logo_path.stat().st_mtime)
+            config["logo_url"] = f"/uploads/{config['logo_filename']}?v={mtime}"
+        else:
+            config["logo_url"] = f"/uploads/{config['logo_filename']}"
     else:
         config["logo_url"] = None
 
