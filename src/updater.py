@@ -362,10 +362,31 @@ def apply_update(tarball_path, version):
         for e in entries:
             if e.startswith("/") or ".." in Path(e).parts:
                 raise RuntimeError(f"unsicherer Pfad im Tarball: {e}")
+        # Sicherheits-Check 2: nichts ausserhalb BACKUP_TARGETS darf im Tarball sein.
+        # Verhindert dass ein versehentlich mit data/-Inhalt gebauter Tarball das
+        # Branding/Logo/Config ueberschreibt. data/, .git/, venv/ etc. sind tabu.
+        allowed_top = set(BACKUP_TARGETS)
+        for e in entries:
+            if not e:
+                continue
+            top = e.split("/", 1)[0]
+            if top not in allowed_top:
+                raise RuntimeError(
+                    f"unerlaubter Pfad im Tarball (nicht in BACKUP_TARGETS): {e}"
+                )
         subprocess.run(
             ["tar", "-xzf", str(tarball_path), "-C", str(REPO_DIR)],
             check=True,
         )
+        # Sicherheits-Check 3: nach dem Extract nochmal pruefen, ob unerwartete
+        # Top-Level-Eintraege in REPO_DIR aufgetaucht sind (belt-and-suspenders
+        # fuer den Fall dass der Tarball z.B. ein data/-Symlink war).
+        for child in REPO_DIR.iterdir():
+            if child.name not in allowed_top:
+                raise RuntimeError(
+                    f"unerwarteter Eintrag nach Extract: {child.name} "
+                    f"(nicht in BACKUP_TARGETS — Update aborted, bitte manuell pruefen)"
+                )
 
     write_local_version(version)
     log("INFO", f"Apply abgeschlossen — VERSION={version}")
