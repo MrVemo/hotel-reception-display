@@ -18,6 +18,21 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - ~~Admin-UI (Mitarbeiter-Verwaltung)~~ → erledigt
 - ~~Update-Mechanismus (Tailscale + Manifest)~~ → erledigt
 
+### Hinzugefügt (Frontend-Split)
+- Neue responsive Web-Variante `src/templates/display_web.html`
+  - Optimiert für PC/Handy/Tablet (Grid-Layout, responsive Breakpoints)
+  - Login via 4-stelligem Code in `<input type="password">` (kein Touch-Keyboard)
+  - Items als Karten-Grid mit Checkbox + Löschen-Button (kein Swipe)
+  - Polling: Items 5s, Network-Info 60s, Branding 30s
+  - Live-Branding-Reload via `/api/branding` (Admin ändert Farben → Web sieht es sofort)
+  - Toast-Notifications für Aktionen
+  - Bestätigungs-Dialog vor Löschen
+  - Tab-Sichtbarkeit: Refresh bei Rückkehr zum Tab
+  - Sort-Auswahl wird in `localStorage` gemerkt
+- Neue Route `GET /display-web` in `src/app.py` (nutzt dieselbe API wie Kiosk)
+- Erweiterter Root-Redirect `/?view=display|form|admin|web` für explizite Wahl
+- Link vom Kiosk-Header (`🌐 Web`) und Web-Footer (`Kiosk-Anzeige`) für einfaches Wechseln
+
 ## [0.1.0] - 2026-09-08
 
 ### Hinzugefügt

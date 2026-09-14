@@ -318,6 +318,15 @@ def preview_display():
     return render_template('display.html', branding=load_branding_config())
 
 
+@app.route('/display-web')
+def display_web_page():
+    """Responsive Browser-Variante der Anzeige (PC/Handy).
+    Nutzt dieselbe API wie der Kiosk (/items, /whoami, /api/branding, ...).
+    Polling alle 5s, leichte Verzögerung wird bewusst akzeptiert.
+    """
+    return render_template('display_web.html', branding=load_branding_config())
+
+
 
 # Konfigurierbarer DB-Pfad (für Tests + Production)
 DEFAULT_DB_PATH = os.path.join(
@@ -355,16 +364,19 @@ def require_login(f):
 @app.route('/')
 def index():
     """Smart-Redirect: Touch-User → /form, Desktop → /display.
-    Override via ?mode=display|form|admin"""
+    Override via ?view=display|form|admin|web
+    """
     from flask import request, redirect, url_for
 
-    mode = request.args.get('mode', '').lower()
-    if mode == 'display':
+    view = request.args.get('view', '').lower()
+    if view == 'display':
         return redirect(url_for('index'))
-    if mode == 'form':
+    if view == 'form':
         return redirect(url_for('form_page'))
-    if mode == 'admin':
+    if view == 'admin':
         return redirect(url_for('admin_page'))
+    if view == 'web':
+        return redirect(url_for('display_web_page'))
 
     ua = request.headers.get('User-Agent', '').lower()
     is_touch = any(t in ua for t in ['mobile', 'android', 'iphone', 'ipad', 'touch'])
