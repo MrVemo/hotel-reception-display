@@ -1,0 +1,101 @@
+/* On-Screen-Tastatur (QWERTZ) fuer Touch-Displays ohne physikalisches Keyboard.
+ *
+ * Layout: deutsches QWERTZ inkl. Umlaute und Eszett, Shift/Caps, Backspace,
+ * Leerzeichen, Enter/Fertig. Wird als fixes Overlay am unteren Bildschirmrand
+ * eingeblendet, sobald ein <input type="text">/Textarea auf einer Touch-Seite
+ * fokussiert wird; verschwindet bei Blur oder Fertig-Tap.
+ *
+ * Siehe touch-keyboard.js fuer Activation und <input>-Anbindung.
+ */
+
+#touch-keyboard {
+    display: none;                /* per JS: flex (nur sichtbar bei Fokus) */
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9999;
+
+    /* Touch-Displays sind 800x480 (siehe cmdline.txt rotate=180) — Keyboard
+       darf nicht mehr als 50% der Hoehe einnehmen, sonst verdeckt es den
+       Rest der Seite. */
+    max-height: 50vh;
+    background: #2c3e50;
+    padding: 6px;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.4);
+    flex-direction: column;
+    gap: 4px;
+
+    /* Blockiere Scroll hinter dem Keyboard */
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+#touch-keyboard.visible {
+    display: flex;
+}
+
+.tk-row {
+    display: flex;
+    gap: 4px;
+    justify-content: stretch;
+    flex: 1;
+}
+
+.tk-btn {
+    flex: 1;
+    min-width: 0;
+    background: #34495e;
+    color: white;
+    border: 1px solid #4a6278;
+    border-radius: 6px;
+    font-size: 1.2rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 6px 4px;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    transition: background 0.08s, transform 0.08s;
+    font-family: inherit;
+}
+
+.tk-btn:active {
+    transform: scale(0.95);
+    background: #2c3e50;
+}
+
+.tk-btn.tk-shift.active,
+.tk-btn.tk-btn-wide {
+    background: #5d6d7e;
+}
+
+.tk-btn.tk-shift.active {
+    background: #f39c12;            /* leuchtet wenn Shift aktiv */
+}
+
+.tk-btn.tk-backspace,
+.tk-btn.tk-enter {
+    background: #7f8c8d;
+    font-size: 1rem;
+    flex: 2;                        /* doppelt so breit wie normale Tasten */
+}
+
+.tk-btn.tk-space {
+    flex: 6;                        /* Leerzeichen ueber sechs Tastenbreiten */
+}
+
+.tk-btn.tk-enter {
+    background: #27ae60;            /* gruen wie Login-Submit */
+}
+
+.tk-btn.tk-enter:active {
+    background: #229954;
+}
+
+/* Wenn Keyboard sichtbar ist, Platz am unteren Body-Rand schaffen,
+   damit der User zum Inhalt scrollen kann und das Textfeld nicht verdeckt
+   wird. Touch-Body bekommt zusätzlichen Padding unten. */
+body.tk-open {
+    padding-bottom: 50vh;
+}

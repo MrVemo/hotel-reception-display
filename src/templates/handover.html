@@ -272,6 +272,7 @@
         }
         .login-error { color: {{ branding.overdue_color }}; font-size: 0.95rem; min-height: 1.4rem; }
     </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='touch-keyboard.css') }}">
 </head>
 <body>
 
@@ -642,5 +643,6 @@
     }
 </script>
 
+<script src="{{ url_for('static', filename='touch-keyboard.js') }}"></script>
 </body>
 </html>

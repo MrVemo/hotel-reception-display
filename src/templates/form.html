@@ -291,6 +291,7 @@
             min-height: 1.5rem;
         }
     </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='touch-keyboard.css') }}">
 </head>
 <body>
     <div class="container">
@@ -586,5 +587,6 @@
             }
         });
     </script>
+    <script src="{{ url_for('static', filename='touch-keyboard.js') }}"></script>
 </body>
 </html>
