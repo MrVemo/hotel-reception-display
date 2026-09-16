@@ -51,7 +51,14 @@ def test_setup_wifi_status_mode(client):
 
 
 def test_setup_wifi_setup_mode_shows_form(client, monkeypatch):
-    """Mit setup_mode-Marker wird das Form mit SSID-Liste angezeigt."""
+    """Mit setup_mode-Marker wird das SSID/Passwort-Form angezeigt.
+
+    Hinweis: Wir pruefen auf das FORM selbst (Input-Felder), nicht auf
+    'Verfuegbare WLANs' — das ist Template-Logik die nur bei gefuellter
+    SSID-Liste erscheint. Im Test ist visible_ssids immer leer (kein
+    echtes WLAN-Scan-Environment), also kommt der else-Zweig mit
+    'Keine WLAN-Scan-Ergebnisse'.
+    """
     monkeypatch.setenv("HOTEL_DISPLAY_WIFI_CONFIG", "/tmp/test-wifi-form.json")
     marker = Path('/tmp/test-setup-mode-marker-form')
     monkeypatch.setenv("HOTEL_DISPLAY_SETUP_MARKER", str(marker))
@@ -60,9 +67,14 @@ def test_setup_wifi_setup_mode_shows_form(client, monkeypatch):
         resp = client.get('/setup-wifi')
         assert resp.status_code == 200
         body = resp.get_data(as_text=True)
-        assert 'name="ssid"' in body
-        assert 'name="password"' in body
-        assert 'Verf\u00fcgbare WLANs' in body  # Umlaute
+        # Das Form muss da sein (Input-Felder) — das ist der eigentliche
+        # Setup-Modus-Indikator.
+        assert 'name="ssid"' in body, "SSID-Input fehlt im Setup-Modus"
+        assert 'name="password"' in body, "Passwort-Input fehlt im Setup-Modus"
+        # Die Hinweis-Box "kein bekanntes WLAN" muss da sein (Setup-Modus-Header)
+        assert 'Konfigurations-AP gestartet' in body, (
+            "Setup-Modus-Hinweistext fehlt"
+        )
     finally:
         marker.unlink(missing_ok=True)
 
@@ -100,6 +112,46 @@ def test_setup_wifi_submit_writes_config(client, monkeypatch):
         assert 'last_seen' in cfg['networks'][0]
     finally:
         marker.unlink(missing_ok=True)
+        cfg_path.unlink(missing_ok=True)
+
+
+def test_setup_wifi_submit_blocked_outside_setup_mode(client, monkeypatch):
+    """REGRESSION: POST /setup-wifi MUSS im Normalbetrieb blockiert sein.
+
+    Hintergrund: Sonst koennte jeder LAN-Reachable eine neue WLAN-Verbindung
+    erzwingen — was den Kiosk-Display offline nimmt (DoS). Das Captive-Portal-
+    Konzept sieht vor dass der POST NUR moeglich ist wenn der Pi selbst den
+    Setup-Modus gestartet hat (Marker-File da). Der Status-Endpoint GET
+    bleibt offen (zeigt nur Infos).
+    """
+    cfg_path = Path('/tmp/test-wifi-gated.json')
+    monkeypatch.setenv("HOTEL_DISPLAY_WIFI_CONFIG", str(cfg_path))
+    # Bewusst KEIN Marker-File anlegen → Normalbetrieb
+    marker = '/tmp/test-setup-mode-gated-SHOULD-NOT-EXIST'
+    monkeypatch.setenv("HOTEL_DISPLAY_SETUP_MARKER", marker)
+    # Doppelter Schutz: falls env nicht greift, sicherstellen dass nichts da ist
+    Path(marker).unlink(missing_ok=True)
+    try:
+        resp = client.post('/setup-wifi', data={
+            'ssid': 'Angreifer-WLAN',
+            'password': 'sollte-nicht-gespeichert-werden',
+        }, follow_redirects=False)
+
+        # Redirect mit Fehlermeldung (kein 403 — das Captive-Portal-Verhalten
+        # soll konsistent freundlich bleiben, der GET-Status zeigt den
+        # Kontext klar)
+        assert resp.status_code == 302, (
+            f"POST ohne Setup-Modus muss 302 redirect ergeben, war {resp.status_code}"
+        )
+        assert 'error=' in resp.headers['Location']
+        assert 'Setup-Modus' in resp.headers['Location'] or 'setup' in resp.headers['Location'].lower()
+
+        # KRITISCH: wifi.json darf NICHT geschrieben sein
+        assert not cfg_path.exists(), (
+            "POST ohne Setup-Modus hat wifi.json geschrieben — "
+            "Sicherheits-Gating versagt!"
+        )
+    finally:
         cfg_path.unlink(missing_ok=True)
 
 

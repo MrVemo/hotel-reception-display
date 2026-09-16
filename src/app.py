@@ -590,7 +590,22 @@ def setup_wifi_submit():
     Schreibt nach $WIFI_CONFIG_PATH (chmod 600) und ruft nmcli auf.
     Bei Erfolg: Pi verbindet sich, Marker-File wird geloescht (vom
     Fallback-Service). Bei Fehler: zurueck zum Form mit Fehlermeldung.
+
+    Sicherheits-Gating: POST ist NUR im Setup-Modus erlaubt (Captive-Portal).
+    Im normalen Live-Betrieb soll niemand per LAN-Reachability eine neue
+    WLAN-Verbindung erzwingen koennen — das waere eine triviale Denial-of-
+    Service Attacke gegen den Kiosk (WLAN-Wechsel kappte aktive Verbindung
+    und das Display wuerde offline gehen).
     """
+    # GATING: Nur erlaubt wenn der Pi im Setup-Modus laeuft (Marker-File).
+    # Im Normalbetrieb → redirect mit klarer Fehlermeldung.
+    if not _is_setup_mode():
+        return redirect(url_for(
+            'setup_wifi_page',
+            error='WLAN-Aenderung ist nur im Setup-Modus erlaubt. '
+                  'Bitte den Setup-Modus manuell aktivieren.'
+        ))
+
     ssid = (request.form.get('ssid') or '').strip()
     password = request.form.get('password') or ''
 
