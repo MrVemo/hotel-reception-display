@@ -1,19 +1,33 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="de" data-theme="{{ branding.theme }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Neues Item — Hotel Reception</title>
+    <meta name="theme-color" content="{{ branding.primary_color }}">
+    <title>Neues Item — {{ branding.hotel_name }}</title>
+    <link rel="stylesheet" href="/static/css/theme.css">
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-
+        /* ===== Reset & Basis ===== */
+        *, *::before, *::after { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #1a1a1a;
-            color: #f0f0f0;
-            height: 100vh;
-            overflow-y: auto;
-            padding: 20px;
+            font-family: var(--font-body);
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.4;
+            -webkit-font-smoothing: antialiased;
+        }
+        a { color: inherit; text-decoration: none; }
+
+        /* ===== Branding-Akzente (theme.css liefert Hell/Dunkel) ===== */
+        :root {
+            --primary: {{ branding.primary_color }};
+            --header-from: {{ branding.header_gradient_from }};
+            --header-to: {{ branding.header_gradient_to }};
+            --urgent: {{ branding.urgent_color }};
+            --overdue: {{ branding.overdue_color }};
+            --done: {{ branding.done_color }};
         }
 
         .container {
@@ -30,11 +44,11 @@
 
         h1 {
             font-size: 1.6rem;
-            color: #f0f0f0;
+            color: var(--text);
         }
 
         .back-btn {
-            background: #34495e;
+            background: var(--header-to);
             color: white;
             border: none;
             padding: 12px 24px;
@@ -45,7 +59,7 @@
         }
 
         .back-btn:active {
-            background: #2c3e50;
+            background: var(--surface);
         }
 
         .field {
@@ -56,23 +70,23 @@
             display: block;
             font-size: 1rem;
             margin-bottom: 8px;
-            color: #95a5a6;
+            color: var(--text-dim);
         }
 
         input[type="text"], textarea, select {
             width: 100%;
             padding: 16px;
             font-size: 1.1rem;
-            background: #2c3e50;
-            border: 2px solid #34495e;
-            color: #f0f0f0;
+            background: var(--surface);
+            border: 2px solid var(--border);
+            color: var(--text);
             border-radius: 8px;
             min-height: 44px;
         }
 
         input[type="text"]:focus, textarea:focus, select:focus {
             outline: none;
-            border-color: #3498db;
+            border-color: var(--primary);
         }
 
         textarea {
@@ -90,7 +104,7 @@
         }
 
         .quick-btn {
-            background: #34495e;
+            background: var(--header-to);
             color: white;
             border: 2px solid transparent;
             padding: 14px 8px;
@@ -103,12 +117,12 @@
         }
 
         .quick-btn:active {
-            background: #2c3e50;
+            background: var(--surface);
         }
 
         .quick-btn.selected {
-            background: #3498db;
-            border-color: #2980b9;
+            background: var(--primary);
+            border-color: var(--primary); filter: brightness(0.85);
         }
 
         .quick-btn small {
@@ -119,7 +133,7 @@
         }
 
         .submit-btn {
-            background: #27ae60;
+            background: var(--done);
             color: white;
             border: none;
             padding: 18px;
@@ -133,18 +147,18 @@
         }
 
         .submit-btn:active {
-            background: #229954;
+            background: var(--done); filter: brightness(0.9);
         }
 
         .submit-btn:disabled {
-            background: #555;
+            background: var(--overdue);
             cursor: not-allowed;
         }
 
         .cancel-btn {
             background: transparent;
-            color: #95a5a6;
-            border: 1px solid #7f8c8d;
+            color: var(--text-dim);
+            border: 1px solid var(--border);
             padding: 14px;
             border-radius: 6px;
             font-size: 1rem;
@@ -155,8 +169,8 @@
         }
 
         .error {
-            color: #e74c3c;
-            background: #3d2c2c;
+            color: var(--overdue);
+            background: var(--surface-alt);
             padding: 12px;
             border-radius: 6px;
             margin-bottom: 16px;
@@ -168,17 +182,17 @@
         }
 
         .who {
-            background: #2c3e50;
+            background: var(--surface);
             padding: 10px 16px;
             border-radius: 6px;
             margin-bottom: 20px;
-            color: #f39c12;
+            color: var(--urgent);
             font-size: 0.95rem;
         }
 
         .hint {
             font-size: 0.85rem;
-            color: #95a5a6;
+            color: var(--text-dim);
             margin-top: 4px;
         }
 
@@ -187,7 +201,7 @@
             display: none;
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0.85);
+            background: var(--overlay);
             z-index: 1000;
             align-items: center;
             justify-content: center;
@@ -207,8 +221,8 @@
         .code-dot {
             width: 50px;
             height: 65px;
-            background: #2c3e50;
-            border: 2px solid #7f8c8d;
+            background: var(--surface);
+            border: 2px solid var(--border);
             border-radius: 8px;
             display: flex;
             align-items: center;
@@ -218,12 +232,12 @@
             transition: all 0.15s;
         }
         .code-dot.filled {
-            border-color: #3498db;
-            background: #34495e;
+            border-color: var(--primary);
+            background: var(--header-to);
         }
         .code-dot.error {
-            border-color: #e74c3c;
-            background: #4a2c2c;
+            border-color: var(--overdue);
+            background: var(--surface-alt);
             animation: shake 0.4s;
         }
         @keyframes shake {
@@ -239,9 +253,9 @@
             margin: 16px 0;
         }
         .kb-btn {
-            background: #34495e;
+            background: var(--header-to);
             color: white;
-            border: 1px solid #4a6278;
+            border: 1px solid var(--border);
             border-radius: 8px;
             font-size: 1.8rem;
             font-weight: 600;
@@ -252,11 +266,11 @@
         }
         .kb-btn:active {
             transform: scale(0.95);
-            background: #2c3e50;
+            background: var(--surface);
         }
         .kb-btn.kb-clear,
         .kb-btn.kb-back {
-            background: #7f8c8d;
+            background: var(--text-dim);
             font-size: 1.4rem;
         }
         .login-buttons {
@@ -266,7 +280,7 @@
         }
 
         .login-submit {
-            background: #27ae60;
+            background: var(--done);
             color: white;
             border: none;
             padding: 14px 32px;
@@ -278,15 +292,15 @@
 
         .login-cancel {
             background: transparent;
-            color: #95a5a6;
-            border: 1px solid #7f8c8d;
+            color: var(--text-dim);
+            border: 1px solid var(--border);
             padding: 10px 20px;
             border-radius: 6px;
             cursor: pointer;
         }
 
         .login-error {
-            color: #e74c3c;
+            color: var(--overdue);
             font-size: 1rem;
             min-height: 1.5rem;
         }
@@ -296,9 +310,22 @@
 <body>
     <div class="container">
         <header>
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;"><span style="background:#3498db;color:white;padding:6px 12px;border-radius:6px;font-size:0.85rem;font-weight:600;">✏️ Eintrags-Formular</span><a href="/display-web" style="margin-left:auto;color:#95a5a6;text-decoration:none;font-size:0.85rem;">📺 Zur Anzeige</a></div>
-<h1>📝 Neues Item</h1>
-            <button class="back-btn" onclick="window.location='/'">← Zurück</button>
+                    <header class="site-header">
+            <div class="brand">
+                <h1>📝 Neues Item</h1>
+            </div>
+            <div class="controls">
+                <a class="btn ghost" href="/display-web">📺 Anzeige</a>
+                <button class="theme-toggle" data-theme-toggle title="Design umschalten">🌙</button>
+                <div class="menu-wrap">
+                    <button class="menu-trigger" aria-expanded="false" title="Weitere Optionen">⋮</button>
+                    <div class="menu-dropdown">
+                        <a href="/"><span class="icon">↩️</span> Zurück zur Übersicht</a>
+                        <a href="/form"><span class="icon">✏️</span> Neues Item</a>
+                        <a href="/handover"><span class="icon">📋</span> Übergabe</a>
+                    </div>
+                </div>
+            </div>
         </header>
 
         <div class="who" id="who">Bitte einloggen</div>
@@ -359,7 +386,7 @@
     <!-- Login Overlay mit Touch-Tastatur -->
     <div class="login-overlay" id="login-overlay">
         <h2>Mitarbeiter-Login</h2>
-        <p style="color:#95a5a6; font-size:0.9rem;">4-stelligen Code eingeben:</p>
+        <p style="color: var(--text-dim); font-size:0.9rem;">4-stelligen Code eingeben:</p>
 
         <div class="code-display">
             <div class="code-dot" data-idx="0"></div>
@@ -588,5 +615,6 @@
         });
     </script>
     <script src="{{ url_for('static', filename='touch-keyboard.js') }}"></script>
+    <script src="/static/js/theme.js"></script>
 </body>
 </html>

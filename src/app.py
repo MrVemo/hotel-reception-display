@@ -59,7 +59,6 @@ DEFAULT_BRANDING = {
     "primary_color": "#3498db",
     "header_gradient_from": "#2c3e50",
     "header_gradient_to": "#34495e",
-    "background_color": "#1a1a1a",
     "urgent_color": "#e74c3c",
     "overdue_color": "#c0392b",
     "done_color": "#27ae60",

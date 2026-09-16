@@ -1,19 +1,38 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="de" data-theme="{{ branding.theme }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="{{ branding.primary_color }}">
     <title>Schicht-Übergabe — {{ branding.hotel_name }}</title>
+    <link rel="stylesheet" href="/static/css/theme.css">
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-
+        /* ===== Reset & Basis ===== */
+        *, *::before, *::after { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: {{ branding.background_color }};
-            color: #f0f0f0;
+            font-family: var(--font-body);
+            background: var(--bg);
+            color: var(--text);
             min-height: 100vh;
+            line-height: 1.4;
+            -webkit-font-smoothing: antialiased;
             display: flex;
             flex-direction: column;
+        }
+        a { color: inherit; text-decoration: none; }
+
+        /* ===== Branding-Akzente (theme.css liefert Hell/Dunkel).
+               header_gradient_* bleiben als Linear-Gradient-Akzente im
+               <header> erhalten (kommt aus branding) — die anderen Akzente
+               liegen als theme-Variablen drueber. ===== */
+        :root {
+            --primary: {{ branding.primary_color }};
+            --header-from: {{ branding.header_gradient_from }};
+            --header-to: {{ branding.header_gradient_to }};
+            --urgent: {{ branding.urgent_color }};
+            --overdue: {{ branding.overdue_color }};
+            --done: {{ branding.done_color }};
         }
 
         header {
@@ -37,8 +56,8 @@
         h1 img { height: 44px; max-width: 120px; object-fit: contain; }
 
         .mode-tag {
-            background: #34495e;
-            color: #f0f0f0;
+            background: var(--header-to);
+            color: var(--text);
             padding: 5px 10px;
             border-radius: 6px;
             font-size: 0.8rem;
@@ -49,7 +68,7 @@
         .nav-btn {
             background: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.2);
-            color: #f0f0f0;
+            color: var(--text);
             padding: 7px 14px;
             border-radius: 6px;
             cursor: pointer;
@@ -64,7 +83,7 @@
         .nav-btn.primary { background: {{ branding.primary_color }}; border-color: {{ branding.primary_color }}; }
         .nav-btn.danger { background: transparent; border-color: {{ branding.overdue_color }}; color: {{ branding.overdue_color }}; }
 
-        .who { color: #f39c12; font-weight: 600; margin-right: 8px; font-size: 0.9rem; }
+        .who { color: var(--urgent); font-weight: 600; margin-right: 8px; font-size: 0.9rem; }
 
         /* ===== Hauptbereich ===== */
         main {
@@ -79,7 +98,7 @@
         }
 
         .card {
-            background: #2c3e50;
+            background: var(--surface);
             border-radius: 8px;
             padding: 14px 16px;
         }
@@ -87,13 +106,13 @@
         .card-title {
             font-size: 1rem;
             font-weight: 600;
-            color: #ecf0f1;
+            color: var(--text);
             margin-bottom: 10px;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
-        .card-title .meta { color: #95a5a6; font-size: 0.82rem; font-weight: 400; }
+        .card-title .meta { color: var(--text-dim); font-size: 0.82rem; font-weight: 400; }
 
         /* ===== Notizen-Liste ===== */
         .notes-list {
@@ -105,7 +124,7 @@
             padding-right: 4px;
         }
         .note {
-            background: #34495e;
+            background: var(--header-to);
             border-left: 4px solid {{ branding.primary_color }};
             border-radius: 6px;
             padding: 10px 12px;
@@ -118,13 +137,13 @@
             gap: 10px;
             margin-bottom: 6px;
             font-size: 0.82rem;
-            color: #95a5a6;
+            color: var(--text-dim);
             flex-wrap: wrap;
         }
-        .note-author { color: #f39c12; font-weight: 600; }
+        .note-author { color: var(--urgent); font-weight: 600; }
         .note-time { font-family: ui-monospace, "SF Mono", Consolas, monospace; }
         .note-text {
-            color: #ecf0f1;
+            color: var(--text);
             font-size: 0.95rem;
             line-height: 1.45;
             white-space: pre-wrap;
@@ -133,7 +152,7 @@
         .note-delete {
             background: transparent;
             border: 1px solid transparent;
-            color: #7f8c8d;
+            color: var(--text-dim);
             font-size: 0.85rem;
             padding: 3px 8px;
             border-radius: 4px;
@@ -147,7 +166,7 @@
         .empty-state {
             text-align: center;
             padding: 30px;
-            color: #7f8c8d;
+            color: var(--text-dim);
             font-size: 1rem;
         }
         .empty-state .icon { font-size: 2.5rem; margin-bottom: 10px; }
@@ -161,9 +180,9 @@
         .composer textarea {
             width: 100%;
             min-height: 100px;
-            background: #1a252f;
-            border: 1px solid #4a6278;
-            color: #f0f0f0;
+            background: var(--header-from);
+            border: 1px solid var(--border);
+            color: var(--text);
             border-radius: 6px;
             padding: 10px 12px;
             font-family: inherit;
@@ -181,7 +200,7 @@
         }
         .composer-status {
             flex: 1;
-            color: #95a5a6;
+            color: var(--text-dim);
             font-size: 0.85rem;
             align-self: center;
         }
@@ -204,7 +223,7 @@
 
         .login-hint {
             text-align: center;
-            color: #95a5a6;
+            color: var(--text-dim);
             padding: 16px;
             font-size: 0.95rem;
         }
@@ -214,7 +233,7 @@
             display: none;
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0.85);
+            background: var(--overlay);
             z-index: 1000;
             align-items: center;
             justify-content: center;
@@ -226,16 +245,16 @@
         .code-display { display: flex; gap: 14px; margin: 6px 0; }
         .code-dot {
             width: 44px; height: 58px;
-            background: #2c3e50;
-            border: 2px solid #7f8c8d;
+            background: var(--surface);
+            border: 2px solid var(--border);
             border-radius: 6px;
             display: flex; align-items: center; justify-content: center;
             font-size: 2rem; color: white;
         }
-        .code-dot.filled { border-color: {{ branding.primary_color }}; background: #34495e; }
+        .code-dot.filled { border-color: {{ branding.primary_color }}; background: var(--header-to); }
         .code-dot.error {
             border-color: {{ branding.overdue_color }};
-            background: #4a2c2c;
+            background: var(--surface-alt);
             animation: shake 0.4s;
         }
         @keyframes shake {
@@ -251,23 +270,23 @@
             margin: 12px 0;
         }
         .kb-btn {
-            background: #34495e;
+            background: var(--header-to);
             color: white;
-            border: 1px solid #4a6278;
+            border: 1px solid var(--border);
             border-radius: 6px;
             font-size: 1.6rem;
             font-weight: 600;
             cursor: pointer;
         }
-        .kb-btn:active { transform: scale(0.95); background: #2c3e50; }
-        .kb-btn.kb-clear, .kb-btn.kb-back { background: #7f8c8d; font-size: 1.3rem; }
+        .kb-btn:active { transform: scale(0.95); background: var(--surface); }
+        .kb-btn.kb-clear, .kb-btn.kb-back { background: var(--text-dim); font-size: 1.3rem; }
         .login-buttons { display: flex; gap: 10px; margin-top: 6px; }
         .login-submit {
             background: {{ branding.done_color }}; color: white; border: none;
             padding: 12px 28px; font-size: 1.1rem; border-radius: 6px; cursor: pointer; min-height: 48px;
         }
         .login-cancel {
-            background: transparent; color: #95a5a6; border: 1px solid #7f8c8d;
+            background: transparent; color: var(--text-dim); border: 1px solid var(--border);
             padding: 10px 18px; border-radius: 6px; cursor: pointer;
         }
         .login-error { color: {{ branding.overdue_color }}; font-size: 0.95rem; min-height: 1.4rem; }
@@ -276,24 +295,24 @@
 </head>
 <body>
 
-<header>
-    <div>
-        <h1>
-            {% if branding.logo_url %}
-            <img src="{{ branding.logo_url }}" alt="Logo">
-            {% endif %}
-            📋 Übergabe
-        </h1>
-        <div style="color:#95a5a6; font-size:0.78rem; margin-top:2px;">{{ branding.hotel_name }}</div>
+<header class="site-header">
+    <div class="brand">
+        <h1>📋 Übergabe</h1>
+        <div class="subtitle">{{ branding.hotel_name }}</div>
     </div>
     <div class="controls">
-        <span class="mode-tag">📋 Übergabe</span>
         <span class="who" id="who"></span>
-        <a class="nav-btn primary" href="/">📺 Anzeige</a>
-        <a class="nav-btn" href="/form">+ Neu</a>
-        <a class="nav-btn" href="/admin">⚙️</a>
-        <a class="nav-btn" href="/display-web" target="_blank" rel="noopener">🌐 Web</a>
-        <button class="nav-btn danger" id="login-btn" onclick="showLogin()">Login</button>
+        <a class="btn primary" href="/">📺 Anzeige</a>
+        <a class="btn" href="/form">+ Neu</a>
+        <button class="theme-toggle" data-theme-toggle title="Design umschalten">🌙</button>
+        <div class="menu-wrap">
+            <button class="menu-trigger" aria-expanded="false" title="Weitere Optionen">⋮</button>
+            <div class="menu-dropdown">
+                <a href="/admin"><span class="icon">⚙️</span> Admin</a>
+                <a href="/display-web" target="_blank" rel="noopener"><span class="icon">🌐</span> Web-Ansicht</a>
+                <button id="login-btn" onclick="showLogin()"><span class="icon">🔑</span> Login</button>
+            </div>
+        </div>
     </div>
 </header>
 
@@ -333,7 +352,7 @@
 <!-- Login Overlay -->
 <div class="login-overlay" id="login-overlay">
     <h2>Mitarbeiter-Login</h2>
-    <p style="color:#95a5a6; font-size:0.9rem;">4-stelligen Code eingeben:</p>
+    <p style="color: var(--text-dim); font-size:0.9rem;">4-stelligen Code eingeben:</p>
     <div class="code-display">
         <div class="code-dot" data-idx="0"></div>
         <div class="code-dot" data-idx="1"></div>
@@ -644,5 +663,6 @@
 </script>
 
 <script src="{{ url_for('static', filename='touch-keyboard.js') }}"></script>
+<script src="/static/js/theme.js"></script>
 </body>
 </html>

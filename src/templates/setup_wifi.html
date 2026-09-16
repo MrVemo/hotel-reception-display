@@ -1,24 +1,28 @@
 <!doctype html>
-<html lang="de">
+<html lang="de" data-theme="{{ branding.theme }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>WLAN einrichten — Hotel-Display</title>
+    <link rel="stylesheet" href="/static/css/theme.css">
     <style>
+        /* Branding-Akzente: theme.css liefert die Hell/Dunkel-Tokens
+           (--bg/--surface/--text/...). Diese Variablen legen sich als
+           Akzent drueber — gleich wie in display.html/display_web.html. */
         :root {
-            --bg: #0f1419;
-            --card: #1a2026;
-            --primary: #3498db;
-            --success: #27ae60;
-            --danger: #e74c3c;
-            --text: #ecf0f1;
-            --text-dim: #95a5a6;
-            --border: #2c3e50;
+            --primary: {{ branding.primary_color or '#3498db' }};
+            --header-from: {{ branding.header_gradient_from or '#2c3e50' }};
+            --header-to: {{ branding.header_gradient_to or '#34495e' }};
+            --urgent: {{ branding.urgent_color or '#e67e22' }};
+            --overdue: {{ branding.overdue_color or '#e74c3c' }};
+            --done: {{ branding.done_color or '#27ae60' }};
+            /* Setup-Wifi braucht einen danger-Akzent fuer Fehler-Alerts */
+            --danger: var(--overdue);
         }
         * { box-sizing: border-box; }
         body {
             margin: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+            font-family: var(--font-body);
             background: var(--bg);
             color: var(--text);
             min-height: 100vh;
@@ -38,7 +42,7 @@
             font-size: 0.9rem;
         }
         .card {
-            background: var(--card);
+            background: var(--surface);
             border-radius: 12px;
             padding: 24px;
             margin-bottom: 16px;
@@ -70,7 +74,7 @@
             font-size: 0.75rem;
             font-weight: 600;
         }
-        .badge.setup { background: #f39c12; color: #000; }
+        .badge.setup { background: var(--urgent); color: #000; }
         .badge.normal { background: var(--success); color: white; }
         form { margin: 0; }
         .form-group {
@@ -168,17 +172,17 @@
         .alert.error {
             background: rgba(231, 76, 60, 0.15);
             border: 1px solid var(--danger);
-            color: #ff8a80;
+            color: var(--overdue);
         }
         .alert.info {
             background: rgba(52, 152, 219, 0.15);
             border: 1px solid var(--primary);
-            color: #90caf9;
+            color: var(--primary);
         }
         .alert.success {
             background: rgba(39, 174, 96, 0.15);
             border: 1px solid var(--success);
-            color: #a5d6a7;
+            color: var(--done);
         }
         .saved-network {
             display: flex;
@@ -346,7 +350,7 @@
                             '<div class="card"><div class="alert error">' +
                             'Verbindung hat nach 60 Sekunden nicht ' +
                             'geklappt. Bitte WLAN und Passwort pruefen, ' +
-                            'dann <a href="/setup-wifi" style="color:#90caf9">' +
+                            'dann <a href="/setup-wifi" style="color:var(--primary)">' +
                             'erneut versuchen</a>.</div></div>';
                     }
                 })
@@ -433,5 +437,6 @@
     {% endif %}
     {% endif %}
 </div>
+<script src="/static/js/theme.js"></script>
 </body>
 </html>
