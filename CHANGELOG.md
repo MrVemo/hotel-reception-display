@@ -46,7 +46,7 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
   fuer Endpoints die nur Admin duerfen. Setzt `require_login` voraus,
   liefert 401 ohne Login, 403 fuer non-Admin.
 - **Permanentes Deploy-Script `kiko-display-deploy.sh`** auf dem
-  Display-Pi (192.168.178.129): macht `git pull --ff-only` als
+  Display-Pi: macht `git pull --ff-only` als
   `willmersdorferhof` + restart `hotel-display.service` + restart
   `hotel-kiosk.service` (try-restart, graceful skip wenn Unit fehlt).
   fail-fast bei divergierter Historie VOR dem Service-Restart.

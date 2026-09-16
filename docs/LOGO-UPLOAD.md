@@ -17,7 +17,7 @@ Logos sind **lokal** auf dem Raspberry Pi unter `/home/willmersdorferhof/hotel-r
 
 ### Schritt 2: Im Admin-UI hochladen
 
-1. Öffne im Browser: `http://192.168.178.129:5000/admin` (LAN) oder `http://100.73.15.104:5000/admin` (Tailscale/VPN)
+1. Öffne im Browser: `http://<pi-ip>:5000/admin` (LAN) oder `http://<tailscale-ip>:5000/admin` (Tailscale/VPN) — die eigene IP steht im Footer der Anzeige
 2. Logge dich ein mit deinem 4-stelligen Admin-Code
 3. Klick oben auf den Tab **🎨 Branding**
 4. Im Bereich **🖼️ Logo** hast du zwei Möglichkeiten:
@@ -47,7 +47,7 @@ Falls ihr den Pi austauscht oder ein Backup braucht:
 
 ```bash
 # Logo sichern
-scp willmersdorferhof@192.168.178.129:/home/willmersdorferhof/hotel-reception-display/data/uploads/logo.* ./
+scp willmersdorferhof@<pi-ip>:/home/willmersdorferhof/hotel-reception-display/data/uploads/logo.* ./
 
 # Logo auf neuen Pi kopieren
 scp logo.png willmersdorferhof@<neuer-pi>:/home/willmersdorferhof/hotel-reception-display/data/uploads/
