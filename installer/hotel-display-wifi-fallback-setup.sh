@@ -62,6 +62,11 @@ SERVICE_FILE="/etc/systemd/system/hotel-display-wifi-fallback.service"
 WIFI_CONFIG_DIR="/etc/hotel-display"
 WIFI_CONFIG_FILE="$WIFI_CONFIG_DIR/wifi.json"
 
+# User unter dem hotel-display.service laeuft (schreibt wifi.json zur Laufzeit).
+# Default: 'willmersdorferhof' (auf dem produktiven Display-Pi).
+# Ueberschreibbar per env: SERVICE_USER=pi sudo bash hotel-display-wifi-fallback-setup.sh
+SERVICE_USER="${SERVICE_USER:-willmersdorferhof}"
+
 echo ""
 echo "╔════════════════════════════════════════════════════════╗"
 echo "║  Hotel Reception Display — WiFi-Fallback Installer     ║"
@@ -228,6 +233,24 @@ if [ ! -f "$WIFI_CONFIG_FILE" ]; then
 fi
 chmod 700 "$WIFI_CONFIG_DIR"
 chmod 600 "$WIFI_CONFIG_FILE"
+
+# WICHTIG: hotel-display.service laeuft NICHT als root, sondern als
+# $SERVICE_USER. Ohne chown kriegt der Service beim /setup-wifi POST
+# ein PermissionError und antwortet mit HTTP 500 (Bug vom 16.09.2026 —
+# Commander hat den manuellen chown als Sofort-Fix auf dem aktuellen Pi
+# gemacht, das hier verhindert dass es bei Neuinstallationen wieder
+# passiert). Wir machen es BEVOR chmod, damit ein etwaiger 'chmod nach
+# chown'-Fall klar bleibt.
+if id "$SERVICE_USER" &>/dev/null; then
+    chown -R "$SERVICE_USER:$SERVICE_USER" "$WIFI_CONFIG_DIR"
+    echo "[6/6] Ownership gesetzt: $SERVICE_USER:$SERVICE_USER auf $WIFI_CONFIG_DIR"
+else
+    echo "⚠️  WARNUNG: User '$SERVICE_USER' existiert nicht auf diesem System."
+    echo "    hotel-display.service wird beim /setup-wifi POST einen PermissionError"
+    echo "    kriegen. Bitte manuell ausfuehren:"
+    echo "      sudo chown -R <dein-service-user>: <$WIFI_CONFIG_DIR>"
+    echo "    Oder Installer nochmal mit SERVICE_USER=<name> aufrufen."
+fi
 
 echo ""
 echo "╔════════════════════════════════════════════════════════╗"
