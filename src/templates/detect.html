@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weiterleitung ...</title>
+<style>
+  body { margin: 0; height: 100vh; display: flex; align-items: center; justify-content: center;
+         background: #101418; color: #cfd8dc; font-family: sans-serif; }
+</style>
+</head>
+<body>
+<p>Weiterleitung ...</p>
+<script>
+(function () {
+  // Kein Handy-Touch-UA erkannt -> koennte das Kiosk-Display (offizielles
+  // 7"-RPi-Touchdisplay, 800x480) ODER ein PC im selben WLAN sein. Die
+  // Bildschirmgroesse ist hier das zuverlaessigste Signal, das der Server
+  // selbst nicht kennt.
+  var longSide = Math.max(screen.width, screen.height);
+  var shortSide = Math.min(screen.width, screen.height);
+  var isKioskScreen = longSide >= 700 && longSide <= 900 && shortSide >= 400 && shortSide <= 550;
+  window.location.replace(isKioskScreen ? '/?view=display' : '/?view=web');
+})();
+</script>
+<noscript>
+  <meta http-equiv="refresh" content="0; url=/?view=web">
+</noscript>
+</body>
+</html>

@@ -387,7 +387,8 @@ def require_admin(f):
 
 @app.route('/')
 def index():
-    """Smart-Redirect: Touch-User → /form, Desktop → /display.
+    """Smart-Redirect: Touch-Handy → /form, unklar (kein Touch-UA) → clientseitige
+    Bildschirmgroessen-Erkennung (Kiosk-Display vs. PC), siehe detect.html.
     Override via ?view=display|form|admin|web
     """
     from flask import request, redirect, url_for
@@ -408,7 +409,12 @@ def index():
     is_touch = any(t in ua for t in ['mobile', 'android', 'iphone', 'ipad', 'touch'])
     if is_touch:
         return redirect(url_for('form_page'))
-    return render_template('display.html', branding=load_branding_config())
+    # Weder Handy-Touch-UA noch expliziter view-Parameter: das Kiosk-Chromium
+    # startet mit einer nackten "/"-URL und sieht UA-seitig wie ein normaler
+    # Desktop-Browser aus, genau wie ein PC im selben WLAN. Bildschirmgroesse
+    # ist das einzige zuverlaessige Unterscheidungsmerkmal -> clientseitig
+    # entscheiden (detect.html), nicht serverseitig raten.
+    return render_template('detect.html')
 
 
 @app.route('/form')
