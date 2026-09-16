@@ -1,143 +1,156 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="de" data-theme="{{ branding.theme }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hotel Reception Display</title>
+    <title>{{ branding.hotel_name }} — Anzeige</title>
+    <link rel="stylesheet" href="/static/css/theme.css">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: {{ branding.background_color }};
-            color: #f0f0f0;
+            font-family: var(--font-body);
+            background: var(--bg);
+            color: var(--text);
             height: 100vh;
             overflow: hidden;
         }
 
         header {
-            background: linear-gradient(135deg, {{ branding.header_gradient_from }}, {{ branding.header_gradient_to }});
-            padding: 12px 20px;
+            background: var(--surface);
+            padding: 10px 18px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 2px solid {{ branding.primary_color }};
+            gap: 12px;
+            border-bottom: 1px solid var(--border);
+            box-shadow: var(--shadow-sm);
         }
 
-        h1 {
-            font-size: 1.5rem;
+        .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+        .brand h1 {
+            font-family: var(--font-display);
+            font-size: 1.35rem;
             font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
+        .brand img { height: 44px; max-width: 150px; object-fit: contain; }
+
+        .last-update { font-size: 0.72rem; color: var(--text-dim); }
 
         .mode-tag {
-            background: #34495e;
-            color: #f0f0f0;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 0.85rem;
+            background: var(--surface-alt);
+            color: var(--text-dim);
+            padding: 5px 10px;
+            border-radius: var(--radius-sm);
+            font-size: 0.75rem;
             font-weight: 600;
-            margin-right: 4px;
         }
 
-        .controls {
+        .controls { display: flex; gap: 8px; align-items: center; }
+
+        /* Segmented Sort-Control statt zwei einzelner Buttons */
+        .sort-group {
             display: flex;
-            gap: 10px;
-            align-items: center;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
         }
-
-        .sort-btn, .login-btn, .admin-btn, .form-btn {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: #f0f0f0;
-            padding: 8px 16px;
-            border-radius: 6px;
+        .sort-btn {
+            background: var(--surface);
+            border: none;
+            color: var(--text-dim);
+            padding: 8px 12px;
             cursor: pointer;
-            font-size: 0.9rem;
-            min-height: 44px;
-            min-width: 44px;
+            font-size: 0.82rem;
+            font-family: var(--font-body);
+            min-height: 40px;
         }
-
+        .sort-btn + .sort-btn { border-left: 1px solid var(--border); }
         .sort-btn.active {
             background: {{ branding.primary_color }};
-            border-color: {{ branding.primary_color }};
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: {{ branding.primary_color }};
+            border: none;
+            color: #fff;
+            padding: 9px 16px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-family: var(--font-body);
+            font-weight: 600;
+            min-height: 40px;
         }
 
         .login-btn {
-            background: {{ branding.done_color }};
-            border-color: {{ branding.done_color }};
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px 14px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 0.82rem;
+            font-family: var(--font-body);
+            min-height: 40px;
         }
 
         .items-container {
-            padding: 20px;
-            height: calc(100vh - 70px);
+            padding: 16px 18px;
+            height: calc(100vh - 62px);
             overflow-y: auto;
         }
 
         .item {
-            background: #2c3e50;
-            border-left: 6px solid {{ branding.primary_color }};
-            padding: 16px 20px;
-            margin-bottom: 12px;
-            border-radius: 8px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-left: 5px solid {{ branding.primary_color }};
+            padding: 14px 18px;
+            margin-bottom: 10px;
+            border-radius: var(--radius-md);
             display: flex;
             align-items: center;
             gap: 16px;
+            box-shadow: var(--shadow-sm);
             transition: transform 0.1s;
         }
 
-        .item:active {
-            transform: scale(0.98);
-        }
+        .item:active { transform: scale(0.98); }
 
-        .item.urgent {
-            border-left-color: {{ branding.urgent_color }};
-            background: linear-gradient(90deg, #2c3e50, #3d2c2c);
-        }
-
-        .item.overdue {
-            border-left-color: {{ branding.overdue_color }};
-            background: linear-gradient(90deg, #2c3e50, #4a2c2c);
-        }
+        .item.urgent { border-left-color: {{ branding.urgent_color }}; }
+        .item.overdue { border-left-color: {{ branding.overdue_color }}; }
 
         .item-text {
             flex: 1;
-            font-size: 1.1rem;
+            font-size: 1.05rem;
             line-height: 1.4;
         }
 
         .item-meta {
             display: flex;
             flex-direction: column;
-            gap: 4px;
-            font-size: 0.85rem;
-            color: #95a5a6;
+            gap: 3px;
+            font-size: 0.8rem;
+            color: var(--text-dim);
             text-align: right;
         }
 
-        .item-deadline {
-            font-weight: 600;
-            color: #ecf0f1;
-        }
+        .item-deadline { font-weight: 600; color: var(--text); }
+        .item-deadline.urgent { color: {{ branding.urgent_color }}; }
+        .item-deadline.overdue { color: {{ branding.overdue_color }}; font-weight: 700; }
 
-        .item-deadline.urgent {
-            color: {{ branding.urgent_color }};
-        }
-
-        .item-deadline.overdue {
-            color: {{ branding.overdue_color }};
-            font-weight: 700;
-        }
-
-        .item-person {
-            color: #f39c12;
-            font-size: 0.9rem;
-        }
+        .item-person { color: {{ branding.primary_color }}; font-size: 0.85rem; }
 
         .checkbox {
-            width: 36px;
-            height: 36px;
-            border: 3px solid #7f8c8d;
-            border-radius: 6px;
+            width: 32px;
+            height: 32px;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-sm);
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -154,92 +167,56 @@
         .checkbox.checked::after {
             content: "✓";
             color: white;
-            font-size: 1.5rem;
+            font-size: 1.3rem;
             font-weight: bold;
         }
 
         .empty-state {
             text-align: center;
             padding: 40px;
-            color: #7f8c8d;
-            font-size: 1.2rem;
+            color: var(--text-dim);
+            font-size: 1.1rem;
         }
 
-        .empty-state .icon {
-            font-size: 3rem;
-            margin-bottom: 16px;
-        }
+        .empty-state .icon { font-size: 2.6rem; margin-bottom: 14px; }
 
-        .stats {
-            font-size: 0.85rem;
-            color: #95a5a6;
-        }
-
-        .last-update {
-            font-size: 0.8rem;
-            color: #7f8c8d;
-        }
-
-        /* Swipe-to-delete indicator */
-        .swipe-hint {
-            position: absolute;
-            right: 20px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #e74c3c;
-            font-size: 1.5rem;
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-
-        .item.swiping .swipe-hint {
-            opacity: 1;
-        }
+        .stats { font-size: 0.8rem; color: var(--text-dim); }
 
         /* Login overlay */
         .login-overlay {
             display: none;
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0.85);
+            background: var(--overlay);
             z-index: 1000;
             align-items: center;
             justify-content: center;
             flex-direction: column;
-            gap: 20px;
+            gap: 18px;
         }
 
         .login-overlay.show { display: flex; }
 
-        .login-overlay h2 {
-            font-size: 1.5rem;
-        }
+        .login-overlay h2 { font-family: var(--font-display); font-size: 1.4rem; color: #fff; }
+        .login-overlay p { color: #d8cfc0; font-size: 0.9rem; }
 
-        .code-display {
-            display: flex;
-            gap: 16px;
-            margin: 8px 0;
-        }
+        .code-display { display: flex; gap: 14px; margin: 6px 0; }
         .code-dot {
-            width: 50px;
-            height: 65px;
-            background: #2c3e50;
-            border: 2px solid #7f8c8d;
-            border-radius: 8px;
+            width: 46px;
+            height: 58px;
+            background: var(--surface);
+            border: 2px solid var(--border);
+            border-radius: var(--radius-sm);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 2.2rem;
-            color: white;
+            font-size: 2rem;
+            color: var(--text);
             transition: all 0.15s;
         }
-        .code-dot.filled {
-            border-color: #3498db;
-            background: #34495e;
-        }
+        .code-dot.filled { border-color: {{ branding.primary_color }}; }
         .code-dot.error {
-            border-color: #e74c3c;
-            background: #4a2c2c;
+            border-color: {{ branding.urgent_color }};
             animation: shake 0.4s;
         }
         @keyframes shake {
@@ -250,97 +227,106 @@
 
         .touch-keyboard {
             display: grid;
-            grid-template-columns: repeat(3, 80px);
-            grid-template-rows: repeat(4, 70px);
-            gap: 10px;
-            margin: 16px 0;
+            grid-template-columns: repeat(3, 74px);
+            grid-template-rows: repeat(4, 64px);
+            gap: 9px;
+            margin: 14px 0;
         }
         .kb-btn {
-            background: #34495e;
-            color: white;
-            border: 1px solid #4a6278;
-            border-radius: 8px;
-            font-size: 1.8rem;
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 1.6rem;
             font-weight: 600;
+            font-family: var(--font-body);
             cursor: pointer;
             transition: all 0.1s;
             user-select: none;
             -webkit-tap-highlight-color: transparent;
         }
-        .kb-btn:active {
-            transform: scale(0.95);
-            background: #2c3e50;
-        }
-        .kb-btn.kb-clear,
-        .kb-btn.kb-back {
-            background: #7f8c8d;
-            font-size: 1.4rem;
-        }
-        .kb-btn.kb-clear:active,
-        .kb-btn.kb-back:active {
-            background: #5d6d7e;
-        }
+        .kb-btn:active { transform: scale(0.95); background: var(--surface-alt); }
+        .kb-btn.kb-clear, .kb-btn.kb-back { color: var(--text-dim); font-size: 1.3rem; }
 
-        .login-buttons {
-            display: flex;
-            gap: 12px;
-            margin-top: 8px;
-        }
+        .login-buttons { display: flex; gap: 12px; margin-top: 6px; }
 
         .login-submit {
-            background: #27ae60;
+            background: {{ branding.done_color }};
             color: white;
             border: none;
-            padding: 14px 32px;
-            font-size: 1.2rem;
-            border-radius: 8px;
+            padding: 13px 30px;
+            font-size: 1.1rem;
+            font-family: var(--font-body);
+            font-weight: 600;
+            border-radius: var(--radius-sm);
             cursor: pointer;
-            min-height: 50px;
+            min-height: 48px;
         }
 
         .login-cancel {
             background: transparent;
-            color: #95a5a6;
-            border: 1px solid #7f8c8d;
-            padding: 10px 20px;
-            border-radius: 6px;
+            color: #d8cfc0;
+            border: 1px solid #6a5f4f;
+            padding: 10px 18px;
+            border-radius: var(--radius-sm);
+            font-family: var(--font-body);
             cursor: pointer;
         }
 
-        .login-error {
-            color: #e74c3c;
-            font-size: 1rem;
-            min-height: 1.5rem;
-        }
+        .login-error { color: #ff8a80; font-size: 0.95rem; min-height: 1.4rem; }
 
-        .who {
-            color: #f39c12;
-            font-weight: 600;
-            margin-right: 12px;
+        .who { color: {{ branding.primary_color }}; font-weight: 600; font-size: 0.85rem; }
+
+        .ip-footer {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            color: var(--text-dim);
+            font-size: 0.68rem;
+            padding: 3px 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-family: ui-monospace, "SF Mono", Consolas, monospace;
+            z-index: 100;
+            height: 20px;
         }
+        .ip-footer .ip-value { color: var(--text); cursor: pointer; }
+        .ip-footer .ip-value:hover { color: {{ branding.primary_color }}; text-decoration: underline; }
+        .ip-footer .ip-sep { color: var(--border); }
     </style>
 </head>
 <body>
     <header>
-        <div>
-            <h1 style="display:flex;align-items:center;gap:12px;">
-                {% if branding.logo_url %}
-                <img src="{{ branding.logo_url }}" alt="Logo" style="height:64px;max-width:180px;object-fit:contain;">
-                {% else %}
-                <span>🏨 {{ branding.hotel_name }}</span>
-                {% endif %}
-            </h1>
-            <div class="last-update" id="last-update">Lade…</div>
+        <div class="brand">
+            {% if branding.logo_url %}
+            <img src="{{ branding.logo_url }}" alt="Logo">
+            {% else %}
+            <span style="font-size:1.5rem;">🏨</span>
+            {% endif %}
+            <div>
+                <h1>{{ branding.hotel_name }}</h1>
+                <div class="last-update" id="last-update">Lade…</div>
+            </div>
         </div>
         <div class="controls">
-            <span class="mode-tag">📺 Anzeige</span>
+            <span class="mode-tag">Anzeige</span>
             <span class="who" id="who"></span>
-            <a class="form-btn" href="/display-web" target="_blank" rel="noopener" title="Responsive Web-Anzeige (PC/Handy)">🌐 Web</a>
-            <a class="form-btn" href="/handover" title="Schicht-Übergabe-Log">📋 Übergabe</a>
-            <button class="sort-btn active" id="sort-urgent" onclick="setSort('urgent')">Dringend</button>
-            <button class="sort-btn" id="sort-newest" onclick="setSort('newest')">Neueste</button>
-            <button class="form-btn" onclick="window.location='/form'">+ Neu</button>
-            <button class="admin-btn" onclick="window.location='/admin'">⚙️</button>
+            <div class="sort-group">
+                <button class="sort-btn active" id="sort-urgent" onclick="setSort('urgent')">Dringend</button>
+                <button class="sort-btn" id="sort-newest" onclick="setSort('newest')">Neueste</button>
+            </div>
+            <button class="btn-primary" onclick="window.location='/form'">+ Neu</button>
+            <button class="theme-toggle" data-theme-toggle title="Design umschalten">🌙</button>
+            <div class="menu-wrap">
+                <button class="menu-trigger" aria-expanded="false" title="Weitere Optionen">⋮</button>
+                <div class="menu-dropdown">
+                    <a href="/display-web" target="_blank" rel="noopener"><span class="icon">🌐</span> Web-Ansicht</a>
+                    <a href="/handover"><span class="icon">📋</span> Übergabe</a>
+                    <a href="/admin"><span class="icon">⚙️</span> Admin</a>
+                </div>
+            </div>
             <button class="login-btn" id="login-btn" onclick="showLogin()">Login</button>
         </div>
     </header>
@@ -355,7 +341,7 @@
     <!-- Login Overlay mit Touch-Tastatur -->
     <div class="login-overlay" id="login-overlay">
         <h2>Mitarbeiter-Login</h2>
-        <p style="color:#95a5a6; font-size:0.9rem;">4-stelligen Code eingeben:</p>
+        <p>4-stelligen Code eingeben:</p>
 
         <!-- Code-Anzeige -->
         <div class="code-display">
@@ -500,7 +486,7 @@
                 const personText = item.assigned_to_name ? `→ ${item.assigned_to_name}` : '';
 
                 return `
-                    <div class="item ${itemClass}" data-id="${item.id}" onswipe>
+                    <div class="item ${itemClass}" data-id="${item.id}">
                         <div class="checkbox" onclick="markDone(${item.id}, event)"></div>
                         <div class="item-text">${escapeHtml(item.text)}</div>
                         <div class="item-meta">
@@ -656,8 +642,6 @@
             }
         }
 
-// Auto-Advance entfernt — Touch-Tastatur hat eigenen Auto-Submit
-
         // ===== Utilities =====
         function escapeHtml(s) {
             if (!s) return '';
@@ -671,41 +655,8 @@
         <span class="ip-label">📶</span>
         <span class="ip-value" id="ip-lan" title="Klicken zum Kopieren">…</span>
         <span class="ip-sep">·</span>
-        <span class="ip-value" id="ip-host" style="color:#7f8c8d">…</span>
+        <span class="ip-value" id="ip-host">…</span>
     </div>
-
-    <style>
-        .ip-footer {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: rgba(0, 0, 0, 0.5);
-            color: #95a5a6;
-            font-size: 0.7rem;
-            padding: 3px 12px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-family: ui-monospace, "SF Mono", Consolas, monospace;
-            z-index: 100;
-            height: 22px;
-        }
-        .ip-footer .ip-label {
-            color: #7f8c8d;
-        }
-        .ip-footer .ip-value {
-            color: #bdc3c7;
-            cursor: pointer;
-        }
-        .ip-footer .ip-value:hover {
-            color: #3498db;
-            text-decoration: underline;
-        }
-        .ip-footer .ip-sep {
-            color: #34495e;
-        }
-    </style>
 
     <script>
     // ===== Touch-Tastatur (Login) =====
@@ -798,5 +749,6 @@
     })();
     </script>
 
+    <script src="/static/js/theme.js"></script>
 </body>
 </html>

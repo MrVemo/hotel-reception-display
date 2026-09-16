@@ -63,7 +63,8 @@ DEFAULT_BRANDING = {
     "urgent_color": "#e74c3c",
     "overdue_color": "#c0392b",
     "done_color": "#27ae60",
-    "logo_filename": None  # wenn gesetzt, wird logo_url automatisch generiert
+    "logo_filename": None,  # wenn gesetzt, wird logo_url automatisch generiert
+    "theme": "light"  # "light" oder "dark" - gilt hotelweit, siehe /api/theme
 }
 
 def load_branding_config():
@@ -180,6 +181,26 @@ def api_set_branding():
     save_branding_config(config)
     log_action(emp_id, 'branding_update', details=json.dumps(data))
     return jsonify({"ok": True, "config": load_branding_config()})
+
+@app.route('/api/theme', methods=['POST'])
+def api_set_theme():
+    """Hell/Dunkel-Umschalter — bewusst OHNE Login.
+
+    Rein kosmetisch (kein Datenrisiko), soll aber trotzdem hotelweit gelten
+    und einen Kiosk-Reboot ueberleben, deshalb serverseitig in derselben
+    config.json wie das Branding statt nur im Browser (localStorage geht
+    bei einem Chromium-Kiosk-Reset teils verloren, siehe [[project]] Notizen).
+    """
+    data = request.get_json() or {}
+    theme = data.get('theme')
+    if theme not in ('light', 'dark'):
+        return jsonify({"ok": False, "error": "theme muss 'light' oder 'dark' sein"}), 400
+
+    config = load_branding_config()
+    config['theme'] = theme
+    save_branding_config(config)
+    return jsonify({"ok": True, "theme": theme})
+
 
 @app.route('/api/branding/reset', methods=['POST'])
 def api_reset_branding():
