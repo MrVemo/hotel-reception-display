@@ -67,20 +67,12 @@ WIFI_CONFIG_FILE="$WIFI_CONFIG_DIR/wifi.json"
 # Ueberschreibbar per env: SERVICE_USER=pi sudo bash hotel-display-wifi-fallback-setup.sh
 SERVICE_USER="${SERVICE_USER:-willmersdorferhof}"
 
-# WPA2-Passphrase fuer den Setup-AP. Wird beim Installer-Lauf FRISCH
-# generiert (12 alphanumerische Zeichen, mobilfreundlich zum Abtippen),
-# NICHT hartcodiert — das Repo ist public, ein bekanntes Passwort waere
-# eine triviale Angriffsstelle waehrend der Umzugsphase. Ueberschreibbar
-# per env fuer reproduzierbare Test-Setups:
+# WPA2-Passphrase wird weiter UNTEN idempotent generiert — nur wenn
+# /etc/hostapd/hostapd.conf noch NICHT existiert. Wenn doch, wird die
+# bestehende Config (und damit das bestehende Passwort) unangetastet
+# gelassen. Muster wie install.sh (ENV_FILE-Existenz-Check). Ueberschreibbar
+# per env fuer reproduzierbare Erstinstallationen:
 #   AP_PASSPHRASE=mein-test-passwort sudo bash hotel-display-wifi-fallback-setup.sh
-if [ -z "${AP_PASSPHRASE:-}" ]; then
-    if command -v openssl >/dev/null 2>&1; then
-        AP_PASSPHRASE=$(openssl rand -base64 18 | tr -dc 'A-Za-z0-9' | head -c 12)
-    else
-        # Fallback falls openssl nicht da ist (z.B. minimal-Container)
-        AP_PASSPHRASE=$(head -c 12 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 12)
-    fi
-fi
 
 echo ""
 echo "╔════════════════════════════════════════════════════════╗"
@@ -99,9 +91,25 @@ echo "[1/5] Installiere hostapd + dnsmasq..."
 apt-get update -qq
 apt-get install -y --no-install-recommends hostapd dnsmasq
 
-# --- 2. hostapd-Config (Access-Point) ---
-echo "[2/5] Schreibe /etc/hostapd/hostapd.conf..."
-cat > /etc/hostapd/hostapd.conf <<EOF
+# --- 2. hostapd-Config (Access-Point) — IDEMPOTENT ---
+# Wenn die Config schon existiert (Re-Run, Wartung, versehentliches
+# Doppel-Ausfuehren): nicht ueberschreiben. Sonst riskieren wir dass
+# das bestehende Passwort (das sich das Hotel-Personal notiert hat)
+# ploetzlich nicht mehr stimmt → niemand kommt mehr in den Setup-AP.
+# Muster analog zu install.sh ENV_FILE-Existenz-Check.
+HOSTAPD_CONF="/etc/hostapd/hostapd.conf"
+if [ ! -f "$HOSTAPD_CONF" ]; then
+    # Erstinstallation: Passphrase generieren falls env nicht ueberschreibt
+    if [ -z "${AP_PASSPHRASE:-}" ]; then
+        if command -v openssl >/dev/null 2>&1; then
+            AP_PASSPHRASE=$(openssl rand -base64 18 | tr -dc 'A-Za-z0-9' | head -c 12)
+        else
+            # Fallback falls openssl nicht da ist (z.B. minimal-Container)
+            AP_PASSPHRASE=$(head -c 12 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 12)
+        fi
+    fi
+    echo "[2/5] Schreibe $HOSTAPD_CONF (neues Passwort generiert)..."
+    cat > "$HOSTAPD_CONF" <<EOF
 # Hotel Reception Display — Access-Point-Config
 # Generiert von $(basename $0) am $(date '+%Y-%m-%d %H:%M:%S')
 
@@ -124,7 +132,19 @@ wpa_key_mgmt=WPA-PSK
 wpa_pairwise=TKIP
 rsn_pairwise=CCMP
 EOF
-chmod 600 /etc/hostapd/hostapd.conf
+else
+    # Bestehende Config → Passphrase NICHT ueberschreiben. Wir versuchen
+    # das aktuelle Passwort aus der Config zu extrahieren damit die
+    # Erfolgsmeldung am Ende den richtigen Wert zeigt — das ist nur
+    # ein Lese-Zugriff, schreibt nichts.
+    EXISTING_PASSPHRASE=$(grep '^wpa_passphrase=' "$HOSTAPD_CONF" | head -1 | cut -d'=' -f2-)
+    if [ -n "$EXISTING_PASSPHRASE" ]; then
+        AP_PASSPHRASE="$EXISTING_PASSPHRASE"
+    fi
+    echo "[2/5] $HOSTAPD_CONF existiert bereits, wird nicht ueberschrieben"
+    echo "      (bestehendes Passwort bleibt aktiv — bitte notiert halten)"
+fi
+chmod 600 "$HOSTAPD_CONF"
 
 # hostapd muss wissen wo seine Config liegt
 if ! grep -q "^DAEMON_CONF" /etc/default/hostapd 2>/dev/null; then
