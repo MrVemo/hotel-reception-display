@@ -67,6 +67,21 @@ WIFI_CONFIG_FILE="$WIFI_CONFIG_DIR/wifi.json"
 # Ueberschreibbar per env: SERVICE_USER=pi sudo bash hotel-display-wifi-fallback-setup.sh
 SERVICE_USER="${SERVICE_USER:-willmersdorferhof}"
 
+# WPA2-Passphrase fuer den Setup-AP. Wird beim Installer-Lauf FRISCH
+# generiert (12 alphanumerische Zeichen, mobilfreundlich zum Abtippen),
+# NICHT hartcodiert — das Repo ist public, ein bekanntes Passwort waere
+# eine triviale Angriffsstelle waehrend der Umzugsphase. Ueberschreibbar
+# per env fuer reproduzierbare Test-Setups:
+#   AP_PASSPHRASE=mein-test-passwort sudo bash hotel-display-wifi-fallback-setup.sh
+if [ -z "${AP_PASSPHRASE:-}" ]; then
+    if command -v openssl >/dev/null 2>&1; then
+        AP_PASSPHRASE=$(openssl rand -base64 18 | tr -dc 'A-Za-z0-9' | head -c 12)
+    else
+        # Fallback falls openssl nicht da ist (z.B. minimal-Container)
+        AP_PASSPHRASE=$(head -c 12 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 12)
+    fi
+fi
+
 echo ""
 echo "╔════════════════════════════════════════════════════════╗"
 echo "║  Hotel Reception Display — WiFi-Fallback Installer     ║"
@@ -100,9 +115,11 @@ macaddr_acl=0
 auth_algs=1
 ignore_broadcast_ssid=0
 
-# WPA2-PSK fuer den Setup-AP (sonst koennte jeder ohne Einwilligung mitmachen)
+# WPA2-PSK fuer den Setup-AP (sonst koennte jeder ohne Einwilligung mitmachen).
+# Passphrase wird beim Installer-Lauf zufaellig generiert (siehe oben)
+# — Repo ist public, kein hartcodiertes Default erlaubt.
 wpa=2
-wpa_passphrase=hotel-display
+wpa_passphrase=$AP_PASSPHRASE
 wpa_key_mgmt=WPA-PSK
 wpa_pairwise=TKIP
 rsn_pairwise=CCMP
@@ -262,8 +279,10 @@ echo "  • Der Service ist aktiviert aber noch NICHT gestartet"
 echo "  • Beim naechsten Boot: wenn wlan0 mit WLAN verbunden → nichts passiert"
 echo "  • Beim naechsten Boot: wenn wlan0 KEIN WLAN findet → AP '$AP_SSID' geht an"
 echo ""
-echo "Captive-Portal-WLAN-Passwort: hotel-display"
-echo "  (Hotel-Mitarbeiter verbindet sich, oeffnet Browser, landet auf /setup-wifi)"
+echo "Captive-Portal-WLAN-Passwort: $AP_PASSPHRASE"
+echo "  ⚠️  BITTE NOTIEREN — Passwort steht in /etc/hostapd/hostapd.conf (chmod 600)"
+echo "     und wird NUR hier einmalig angezeigt. Hotel-Mitarbeiter braucht es zum"
+echo "     Verbinden mit dem Setup-AP '$AP_SSID' (oeffnen, PW eingeben, Captive-Portal)."
 echo ""
 echo "Manuell testen (vor Ort beim Hotel-Umzug):"
 echo "  sudo systemctl start hotel-display-wifi-fallback.service"

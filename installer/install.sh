@@ -123,7 +123,7 @@ if [ ! -f "$UPDATER_ENV" ]; then
 # Generiert von installer $(date '+%Y-%m-%d %H:%M:%S')
 #
 # HOTEL_DISPLAY_UPDATE_URL muss auf die Tailscale-URL des Docker-PC zeigen
-# (z.B. https://100.64.1.5/updates). HOTEL_DISPLAY_UPDATE_KEY ist die GPG-Key-ID
+# (z.B. https://<tailscale-ip>/updates). HOTEL_DISPLAY_UPDATE_KEY ist die GPG-Key-ID
 # mit der das Manifest signiert wird — vor Inbetriebnahme den Public-Key
 # importieren: gpg --import docker-pc-update-key.pub
 #

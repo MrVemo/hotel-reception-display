@@ -35,7 +35,7 @@ Signatur: `gpg --detach-sign --armor manifest.json` → `manifest.json.asc` (im 
 abgelegt). RPI verifiziert gegen importierten Public-Key via `gpg --verify`.
 
 Konfiguration (env, gesetzt in /etc/default/hotel-display):
-    HOTEL_DISPLAY_UPDATE_URL   z.B. https://100.64.1.5/updates (Tailscale-IP!)
+    HOTEL_DISPLAY_UPDATE_URL   z.B. https://<tailscale-ip>/updates
     HOTEL_DISPLAY_UPDATE_KEY   GPG-Key-ID oder FPR (z.B. ABCD1234EF567890)
     HOTEL_DISPLAY_UPDATE_WINDOW_START  Default: 3
     HOTEL_DISPLAY_UPDATE_WINDOW_END    Default: 5
