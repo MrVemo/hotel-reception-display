@@ -23,6 +23,7 @@ from flask import Flask, request, jsonify, session, render_template, render_temp
 from datetime import datetime, timedelta
 import os
 import json
+import re
 import time
 from pathlib import Path
 
@@ -64,7 +65,8 @@ DEFAULT_BRANDING = {
     "overdue_color": "#c0392b",
     "done_color": "#27ae60",
     "logo_filename": None,  # wenn gesetzt, wird logo_url automatisch generiert
-    "theme": "light"  # "light" oder "dark" - gilt hotelweit, siehe /api/theme
+    "theme": "light",  # "light" oder "dark" - gilt hotelweit, siehe /api/theme
+    "closing_time": "22:00"  # "HH:MM" oder "" (deaktiviert) - siehe get_closing_lock_boundary()
 }
 
 def load_branding_config():
@@ -176,6 +178,8 @@ def api_set_branding():
         return jsonify({"ok": False, "error": "Keine Admin-Rechte"}), 403
 
     data = request.get_json() or {}
+    if 'closing_time' in data and not _is_valid_closing_time(data['closing_time']):
+        return jsonify({"ok": False, "error": "closing_time muss 'HH:MM' oder leer sein"}), 400
     config = load_branding_config()
     config.update(data)
     save_branding_config(config)
@@ -368,6 +372,30 @@ CHANGELOG_PATH = REPO_ROOT / "CHANGELOG.md"
 # zeigt ohne gueltigen Mitarbeiter-Code keine Gast-/Zimmerdaten mehr an).
 IDLE_TIMEOUT_SECONDS = 5 * 60
 
+_CLOSING_TIME_RE = re.compile(r'^([01]\d|2[0-3]):([0-5]\d)$')
+
+
+def _is_valid_closing_time(value):
+    """'' (deaktiviert) oder 'HH:MM' (24h)."""
+    return value == '' or (isinstance(value, str) and bool(_CLOSING_TIME_RE.match(value)))
+
+
+def get_closing_lock_boundary():
+    """Letzter ueberschrittener closing_time-Zeitpunkt (branding-Config) vor
+    jetzt, als datetime - oder None wenn keine/keine gueltige Sperrzeit
+    konfiguriert ist. Sessions, die VOR diesem Zeitpunkt eingeloggt wurden,
+    gelten als abgelaufen (siehe get_current_employee()) - harte Sperre zur
+    konfigurierten Uhrzeit, unabhaengig von Aktivitaet."""
+    closing_time = load_branding_config().get('closing_time') or ''
+    if not _CLOSING_TIME_RE.match(closing_time):
+        return None
+    hh, mm = (int(p) for p in closing_time.split(':'))
+    now = datetime.now()
+    boundary = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
+    if boundary > now:
+        boundary -= timedelta(days=1)
+    return boundary
+
 
 def mark_activity():
     """Markiert echte Nutzer-Interaktion (fuer den Idle-Timeout). NICHT auf
@@ -379,14 +407,22 @@ def mark_activity():
 def get_current_employee():
     """Holt den eingeloggten Mitarbeiter aus der Session, oder None.
 
-    Loggt bei Ueberschreiten von IDLE_TIMEOUT_SECONDS seit der letzten echten
-    Aktivitaet automatisch aus (Session wird geleert).
+    Loggt automatisch aus (Session wird geleert), wenn entweder
+    IDLE_TIMEOUT_SECONDS seit der letzten echten Aktivitaet ueberschritten
+    sind, oder die konfigurierte Sperrzeit (closing_time) seit dem Login
+    ueberschritten wurde ("Feierabend" - harte Sperre, auch bei aktiver
+    Nutzung bis kurz vor der Sperrzeit).
     """
     emp_id = session.get('employee_id')
     if not emp_id:
         return None
     last_activity = session.get('last_activity')
     if last_activity is None or (time.time() - last_activity) > IDLE_TIMEOUT_SECONDS:
+        session.clear()
+        return None
+    login_at = session.get('login_at')
+    boundary = get_closing_lock_boundary()
+    if boundary is not None and (login_at is None or login_at < boundary.timestamp()):
         session.clear()
         return None
     db = get_db()
@@ -771,6 +807,7 @@ def login():
 
     session['employee_id'] = emp['id']
     session['employee_name'] = emp['name']
+    session['login_at'] = time.time()
     mark_activity()
     log_action(emp['id'], 'login')
 
