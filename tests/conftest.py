@@ -53,6 +53,11 @@ def app(tmp_path, monkeypatch):
     # die produktive data/config.json aus dem Repo und liefert stale Werte.
     test_config = tmp_path / "config.json"
     monkeypatch.setattr(app_module, "CONFIG_PATH", test_config)
+    # WiFi-Config-Pfad ebenfalls pro Test isolieren — Default waere
+    # /etc/hotel-display/wifi.json (root-Pfad), das wuerde alle WiFi-Setup-Tests
+    # sofort mit PermissionError abbrechen lassen.
+    test_wifi = tmp_path / "wifi.json"
+    monkeypatch.setenv("HOTEL_DISPLAY_WIFI_CONFIG", str(test_wifi))
 
     return app_module.app
 

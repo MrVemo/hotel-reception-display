@@ -19,7 +19,7 @@ Start:
     # → http://0.0.0.0:5000
 """
 
-from flask import Flask, request, jsonify, session, render_template, render_template_string
+from flask import Flask, request, jsonify, session, render_template, render_template_string, redirect, url_for
 from datetime import datetime, timedelta
 import os
 import json
@@ -427,6 +427,241 @@ def admin_page():
 def handover_page():
     """Schicht-Übergabe-Log (Touch-optimiert, mit Login-Overlay)."""
     return render_template('handover.html', branding=load_branding_config())
+
+
+# ===== WiFi-Setup (Captive-Portal) =====
+
+# Konfiguration (NICHT hartcoden — soll spaeter ueber env oder Config-File
+# anpassbar sein, falls Hotel anderes WLAN-Schema hat)
+# Lazy-Init: mkdir + touch erst beim ersten Gebrauch, nicht beim Import —
+# sonst knallt es in Dev/CI-Umgebungen ohne root-Rechte auf /etc/...
+def _wifi_config_path() -> Path:
+    """Gibt den Pfad zur wifi.json zurueck und legt das Parent-Dir lazy an.
+
+    Default = /etc/hotel-display/wifi.json (root-pfad auf dem Display-Pi).
+    Ueberschreibbar per HOTEL_DISPLAY_WIFI_CONFIG env (z.B. fuer Tests).
+    """
+    p = Path(os.environ.get(
+        'HOTEL_DISPLAY_WIFI_CONFIG',
+        '/etc/hotel-display/wifi.json'
+    ))
+    p.parent.mkdir(parents=True, exist_ok=True)
+    return p
+
+
+def _is_setup_mode() -> bool:
+    """True wenn der Pi im AP/Captive-Portal-Modus laeuft.
+
+    Wird vom WiFi-Fallback-System-Service (/usr/local/bin/hotel-display-wifi-fallback.sh)
+    gesetzt durch Anlegen einer Marker-Datei. Wir checken das hier um zu
+    entscheiden ob das Captive-Portal ausgeliefert werden soll.
+
+    Pfad konfigurierbar per HOTEL_DISPLAY_SETUP_MARKER env (fuer Tests).
+    """
+    return Path(os.environ.get(
+        'HOTEL_DISPLAY_SETUP_MARKER',
+        '/run/hotel-display-setup-mode'
+    )).exists()
+
+
+def _wifi_status() -> dict:
+    """Liest den aktuellen WLAN-Status. Read-only, kein Sudo noetig.
+
+    Nutzt 'iw' fuer Interface-Info und 'nmcli' (falls verfuegbar) fuer
+    SSID + IP. Faellt zurueck auf einen Default-Status wenn die Tools
+    fehlen.
+    """
+    import subprocess
+    status = {
+        'interface': 'wlan0',
+        'connected': False,
+        'ssid': None,
+        'ip': None,
+        'saved_networks': [],
+        'setup_mode': _is_setup_mode(),
+    }
+    try:
+        r = subprocess.run(['iw', 'dev', 'wlan0', 'link'],
+                           capture_output=True, text=True, timeout=2)
+        if r.returncode == 0 and 'SSID' in r.stdout:
+            for line in r.stdout.splitlines():
+                if 'SSID:' in line:
+                    status['ssid'] = line.split('SSID:')[1].strip()
+                if 'tx bitrate:' in line:
+                    pass  # nur Info
+            status['connected'] = bool(status['ssid'])
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+
+    try:
+        r = subprocess.run(['ip', '-4', '-o', 'addr', 'show', 'wlan0'],
+                           capture_output=True, text=True, timeout=2)
+        if r.returncode == 0:
+            for line in r.stdout.splitlines():
+                parts = line.split()
+                for i, p in enumerate(parts):
+                    if p == 'inet':
+                        status['ip'] = parts[i + 1].split('/')[0]
+                        break
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+
+    # Gespeicherte WLANs aus wifi.json lesen (zeigt dem User welche SSIDs
+    # schon konfiguriert sind — wichtig fuer Hotel-Mitarbeiter die mehrere
+    # APs im Hotel sehen)
+    cfg_path = _wifi_config_path()
+    if cfg_path.exists():
+        try:
+            cfg = json.loads(cfg_path.read_text() or '{}')
+            saved = cfg.get('networks', [])
+            status['saved_networks'] = [
+                {'ssid': n['ssid'], 'last_seen': n.get('last_seen')}
+                for n in saved
+            ]
+        except (json.JSONDecodeError, KeyError):
+            pass
+
+    return status
+
+
+@app.route('/setup-wifi', methods=['GET'])
+def setup_wifi_page():
+    """Captive-Portal: zeigt verfügbare WLANs und ein Form zum Eintragen.
+
+    Bewusst OHNE Login: Hotel-Mitarbeiter ohne Technik-Kenntnisse muss
+    das ohne Code benutzen koennen. Daher auch keine Branding-Variablen
+    im Template — sieht anders aus als die App, soll klar als Setup erkennbar sein.
+    """
+    import subprocess
+    if not _is_setup_mode():
+        # Im normal-Modus: Status-Seite (kein Setup-Form)
+        return render_template('setup_wifi.html',
+                             mode='status',
+                             status=_wifi_status(),
+                             error=request.args.get('error'))
+
+    visible_ssids = []
+    try:
+        # nmcli wifi list — braucht sudo, in der Praxis vom Fallback-Service
+        # aufgerufen. Wenn die Rechte fehlen, zeigen wir eine leere Liste.
+        r = subprocess.run(
+            ['nmcli', '-t', '-f', 'SSID,SIGNAL,SECURITY', 'device', 'wifi', 'list',
+             '--rescan', 'yes'],
+            capture_output=True, text=True, timeout=10)
+        if r.returncode == 0:
+            seen = set()
+            for line in r.stdout.splitlines():
+                if not line.strip():
+                    continue
+                parts = line.split(':')
+                if len(parts) >= 3 and parts[0] and parts[0] not in seen:
+                    seen.add(parts[0])
+                    visible_ssids.append({
+                        'ssid': parts[0],
+                        'signal': int(parts[1]) if parts[1].isdigit() else 0,
+                        'security': parts[2] if parts[2] else 'offen',
+                    })
+            # Sortieren nach Signalstaerke (stark nach oben)
+            visible_ssids.sort(key=lambda x: -x['signal'])
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+
+    return render_template('setup_wifi.html',
+                         mode='setup',
+                         status=_wifi_status(),
+                         visible_ssids=visible_ssids,
+                         error=request.args.get('error'))
+
+
+@app.route('/setup-wifi', methods=['POST'])
+def setup_wifi_submit():
+    """Speichert eine neue WLAN-Konfiguration und versucht die Verbindung.
+
+    Validierung:
+      - SSID: 1-32 Zeichen, keine Sonderzeichen (SSID-Standard)
+      - Passwort: 0-63 Zeichen (WPA2 max) — leer = offenes WLAN
+
+    Schreibt nach $WIFI_CONFIG_PATH (chmod 600) und ruft nmcli auf.
+    Bei Erfolg: Pi verbindet sich, Marker-File wird geloescht (vom
+    Fallback-Service). Bei Fehler: zurueck zum Form mit Fehlermeldung.
+    """
+    ssid = (request.form.get('ssid') or '').strip()
+    password = request.form.get('password') or ''
+
+    # SSID-Validierung (WPA2-Standard: 1-32 octets, druckbare ASCII)
+    if not ssid or len(ssid) > 32:
+        return redirect(url_for('setup_wifi_page', error='SSID muss 1-32 Zeichen lang sein'))
+    if any(ord(c) < 0x20 or ord(c) > 0x7e for c in ssid):
+        return redirect(url_for('setup_wifi_page', error='SSID enthaelt ungueltige Zeichen'))
+    # Passwort-Validierung (WPA2-Passphrase: 8-63 ASCII, oder 64 Hex fuer WPA-PSK)
+    # Wir erlauben auch leeres Passwort fuer offene WLANs
+    if password and (len(password) < 8 or len(password) > 63):
+        return redirect(url_for('setup_wifi_page', error='Passwort muss 8-63 Zeichen sein (oder leer fuer offen)'))
+
+    # Bestehende Config laden und aktualisieren
+    cfg_path = _wifi_config_path()
+    try:
+        cfg = json.loads(cfg_path.read_text() or '{}')
+    except (FileNotFoundError, json.JSONDecodeError):
+        cfg = {'networks': []}
+    cfg.setdefault('networks', [])
+
+    # SSID aktualisieren (oder neu anlegen) + last_seen setzen
+    now = datetime.now().isoformat(timespec='seconds')
+    found = False
+    for n in cfg['networks']:
+        if n.get('ssid') == ssid:
+            n['password'] = password       # Klartext im File — chmod 600 schuetzt
+            n['last_seen'] = now
+            found = True
+            break
+    if not found:
+        cfg['networks'].append({
+            'ssid': ssid,
+            'password': password,
+            'last_seen': now,
+        })
+
+    # Speichern (chmod 600 ist Pflicht — Passwort im Klartext!)
+    cfg_path.write_text(json.dumps(cfg, indent=2))
+    cfg_path.chmod(0o600)
+
+    # Verbindung herstellen via nmcli — blockiert bis zu 20s
+    import subprocess
+    try:
+        cmd = ['nmcli', 'device', 'wifi', 'connect', ssid]
+        if password:
+            cmd += ['password', password]
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
+        if r.returncode == 0:
+            # Marker-File loeschen — wir sind aus dem Setup-Modus raus
+            Path(os.environ.get(
+                'HOTEL_DISPLAY_SETUP_MARKER',
+                '/run/hotel-display-setup-mode'
+            )).unlink(missing_ok=True)
+            # Erfolg-Seite anzeigen (Polling-Seite die auf Verbindung wartet)
+            return render_template('setup_wifi.html',
+                                 mode='connecting',
+                                 status=_wifi_status(),
+                                 ssid=ssid)
+        else:
+            err = (r.stderr or 'Verbindung fehlgeschlagen').strip()
+            return redirect(url_for('setup_wifi_page', error=err[:200]))
+    except subprocess.TimeoutExpired:
+        return redirect(url_for('setup_wifi_page', error='Verbindungsversuch hat zu lange gedauert'))
+    except FileNotFoundError:
+        return redirect(url_for('setup_wifi_page',
+                                error='nmcli nicht installiert — bitte Installer ausfuehren'))
+
+
+@app.route('/setup-wifi/check')
+def setup_wifi_check():
+    """AJAX-Endpoint fuer die 'connecting'-Seite: gibt aktuellen WLAN-Status.
+
+    Polling: Browser pollt alle 2s und wechselt auf die Status-Seite sobald
+    die Verbindung steht.
+    """
+    return jsonify(_wifi_status())
 
 
 # ===== Auth =====

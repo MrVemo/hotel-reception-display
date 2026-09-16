@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>WLAN einrichten — Hotel-Display</title>
+    <style>
+        :root {
+            --bg: #0f1419;
+            --card: #1a2026;
+            --primary: #3498db;
+            --success: #27ae60;
+            --danger: #e74c3c;
+            --text: #ecf0f1;
+            --text-dim: #95a5a6;
+            --border: #2c3e50;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 600px; margin: 0 auto; }
+        header {
+            text-align: center;
+            padding: 20px 0 30px;
+        }
+        h1 {
+            font-size: 1.6rem;
+            margin: 0 0 8px;
+        }
+        .subtitle {
+            color: var(--text-dim);
+            font-size: 0.9rem;
+        }
+        .card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 16px;
+            border: 1px solid var(--border);
+        }
+        .status-grid {
+            display: grid;
+            gap: 12px;
+        }
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .status-row:last-child { border-bottom: none; }
+        .label { color: var(--text-dim); font-size: 0.85rem; }
+        .value {
+            font-weight: 600;
+            font-family: ui-monospace, "SF Mono", Menlo, monospace;
+        }
+        .value.connected { color: var(--success); }
+        .value.disconnected { color: var(--danger); }
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge.setup { background: #f39c12; color: #000; }
+        .badge.normal { background: var(--success); color: white; }
+        form { margin: 0; }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 1rem;
+            font-family: inherit;
+        }
+        input[type="text"]:focus, input[type="password"]:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        .btn {
+            display: inline-block;
+            width: 100%;
+            padding: 14px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        .btn:active { transform: scale(0.98); }
+        .btn:disabled {
+            background: var(--text-dim);
+            cursor: not-allowed;
+        }
+        .ssid-list {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 20px;
+            max-height: 320px;
+            overflow-y: auto;
+        }
+        .ssid-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: border-color 0.1s;
+        }
+        .ssid-item:hover { border-color: var(--primary); }
+        .ssid-item.selected {
+            border-color: var(--primary);
+            background: rgba(52, 152, 219, 0.1);
+        }
+        .ssid-name { font-weight: 600; }
+        .ssid-meta {
+            display: flex;
+            gap: 8px;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+        }
+        .signal-bar {
+            display: inline-block;
+            width: 40px;
+            height: 6px;
+            background: var(--border);
+            border-radius: 3px;
+            position: relative;
+            overflow: hidden;
+        }
+        .signal-fill {
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            background: var(--success);
+        }
+        .alert {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 0.9rem;
+        }
+        .alert.error {
+            background: rgba(231, 76, 60, 0.15);
+            border: 1px solid var(--danger);
+            color: #ff8a80;
+        }
+        .alert.info {
+            background: rgba(52, 152, 219, 0.15);
+            border: 1px solid var(--primary);
+            color: #90caf9;
+        }
+        .alert.success {
+            background: rgba(39, 174, 96, 0.15);
+            border: 1px solid var(--success);
+            color: #a5d6a7;
+        }
+        .saved-network {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+        .saved-network:last-child { border-bottom: none; }
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            vertical-align: middle;
+            margin-right: 10px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .empty {
+            text-align: center;
+            color: var(--text-dim);
+            padding: 24px;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>📶 WLAN einrichten</h1>
+        <p class="subtitle">
+            {% if mode == 'setup' %}
+            Hotel-WLAN auswählen und Passwort eingeben.
+            {% elif mode == 'connecting' %}
+            Verbindung wird aufgebaut…
+            {% else %}
+            Aktueller WLAN-Status
+            {% endif %}
+        </p>
+    </header>
+
+    {% if error %}
+    <div class="alert error">
+        ⚠️ {{ error }}
+    </div>
+    {% endif %}
+
+    {# ===== Modus: SETUP (Captive-Portal) ===== #}
+    {% if mode == 'setup' %}
+    <div class="alert info">
+        Das Display konnte kein bekanntes WLAN finden und hat einen
+        Konfigurations-AP gestartet. Bitte das Hotel-WLAN unten auswählen
+        und das Passwort eingeben.
+    </div>
+
+    {% if visible_ssids %}
+    <div class="card">
+        <label style="margin-bottom: 12px;">Verfügbare WLANs in Reichweite:</label>
+        <ul class="ssid-list" id="ssid-list">
+            {% for s in visible_ssids %}
+            <li class="ssid-item"
+                data-ssid="{{ s.ssid }}"
+                onclick="selectSSID('{{ s.ssid }}')">
+                <div>
+                    <div class="ssid-name">{{ s.ssid }}</div>
+                    <div class="ssid-meta">
+                        <span>{{ s.security }}</span>
+                        <span class="signal-bar">
+                            <span class="signal-fill"
+                                  style="width: {{ s.signal }}%"></span>
+                        </span>
+                    </div>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% else %}
+    <div class="card">
+        <div class="empty">
+            ⚠️ Keine WLAN-Scan-Ergebnisse.<br>
+            <small>Warte ein paar Sekunden, dann
+            <a href="javascript:location.reload()" style="color: var(--primary);">
+                Seite neu laden
+            </a>.</small>
+        </div>
+    </div>
+    {% endif %}
+
+    <form method="post" action="/setup-wifi" id="wifi-form">
+        <div class="card">
+            <div class="form-group">
+                <label for="ssid">SSID (Netzwerk-Name)</label>
+                <input type="text" name="ssid" id="ssid" required
+                       maxlength="32" autocomplete="off"
+                       placeholder="z.B. Hotel-WLAN-Guest"
+                       pattern="^[\x20-\x7E]+$">
+            </div>
+            <div class="form-group">
+                <label for="password">Passwort (leer = offenes WLAN)</label>
+                <input type="password" name="password" id="password"
+                       maxlength="63" autocomplete="off"
+                       placeholder="WLAN-Passwort">
+            </div>
+            <button type="submit" class="btn" id="submit-btn">
+                🔌 Verbinden
+            </button>
+        </div>
+    </form>
+
+    <script>
+        function selectSSID(ssid) {
+            document.getElementById('ssid').value = ssid;
+            document.querySelectorAll('.ssid-item').forEach(el => {
+                el.classList.toggle('selected',
+                    el.dataset.ssid === ssid);
+            });
+            document.getElementById('password').focus();
+        }
+        document.getElementById('wifi-form').addEventListener('submit', () => {
+            const btn = document.getElementById('submit-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Verbinde…';
+        });
+    </script>
+
+    {# ===== Modus: CONNECTING (Polling) ===== #}
+    {% elif mode == 'connecting' %}
+    <div class="card">
+        <div style="text-align: center; padding: 20px;">
+            <div class="spinner" style="width: 40px; height: 40px;
+                                         border-width: 4px;"></div>
+            <p style="margin-top: 20px;">
+                Verbinde mit <strong>{{ ssid }}</strong>…
+            </p>
+            <p style="color: var(--text-dim); font-size: 0.85rem;">
+                Sobald die Verbindung steht, wird diese Seite automatisch
+                auf die Status-Anzeige umschalten.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Polling alle 2s — sobald SSID + IP verfuegbar sind, gilt die
+        // Verbindung als hergestellt und wir leiten auf die Status-Seite.
+        let attempts = 0;
+        const MAX_ATTEMPTS = 30;   // 60 Sekunden total
+        const POLL_INTERVAL = 2000;
+
+        function check() {
+            attempts++;
+            fetch('/setup-wifi/check')
+                .then(r => r.json())
+                .then(status => {
+                    if (status.connected && status.ssid) {
+                        window.location.href = '/setup-wifi';
+                    } else if (attempts < MAX_ATTEMPTS) {
+                        setTimeout(check, POLL_INTERVAL);
+                    } else {
+                        document.querySelector('.container').innerHTML =
+                            '<div class="card"><div class="alert error">' +
+                            'Verbindung hat nach 60 Sekunden nicht ' +
+                            'geklappt. Bitte WLAN und Passwort pruefen, ' +
+                            'dann <a href="/setup-wifi" style="color:#90caf9">' +
+                            'erneut versuchen</a>.</div></div>';
+                    }
+                })
+                .catch(() => {
+                    if (attempts < MAX_ATTEMPTS) {
+                        setTimeout(check, POLL_INTERVAL);
+                    }
+                });
+        }
+        setTimeout(check, POLL_INTERVAL);
+    </script>
+
+    {# ===== Modus: STATUS (Normal-Betrieb) ===== #}
+    {% else %}
+    <div class="card">
+        <div class="status-grid">
+            <div class="status-row">
+                <span class="label">Modus</span>
+                <span class="value">
+                    {% if status.setup_mode %}
+                    <span class="badge setup">Setup (AP)</span>
+                    {% else %}
+                    <span class="badge normal">Normal</span>
+                    {% endif %}
+                </span>
+            </div>
+            <div class="status-row">
+                <span class="label">Interface</span>
+                <span class="value">{{ status.interface }}</span>
+            </div>
+            <div class="status-row">
+                <span class="label">Status</span>
+                <span class="value {% if status.connected %}connected{% else %}disconnected{% endif %}">
+                    {% if status.connected %}Verbunden{% else %}Nicht verbunden{% endif %}
+                </span>
+            </div>
+            {% if status.ssid %}
+            <div class="status-row">
+                <span class="label">SSID</span>
+                <span class="value">{{ status.ssid }}</span>
+            </div>
+            {% endif %}
+            {% if status.ip %}
+            <div class="status-row">
+                <span class="label">IP-Adresse</span>
+                <span class="value">{{ status.ip }}</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if status.saved_networks %}
+    <div class="card">
+        <label style="margin-bottom: 12px;">
+            Gespeicherte Netzwerke ({{ status.saved_networks|length }}):
+        </label>
+        {% for n in status.saved_networks %}
+        <div class="saved-network">
+            <span>{{ n.ssid }}</span>
+            <span style="color: var(--text-dim); font-size: 0.75rem;">
+                {{ n.last_seen or '—' }}
+            </span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if status.setup_mode %}
+    <div class="alert info">
+        Der Display-Pi ist im Setup-Modus. WLAN wird unten konfiguriert.
+        Nach erfolgreicher Verbindung schaltet das System automatisch zurueck.
+    </div>
+    <p style="text-align: center; margin-top: 24px;">
+        <a href="/setup-wifi" class="btn" style="text-decoration: none;">
+            🔧 WLAN einrichten
+        </a>
+    </p>
+    {% else %}
+    <div class="alert info" style="font-size: 0.85rem;">
+        Das Display-Pi ist im normalen Betrieb. Um neue WLANs hinzuzufuegen,
+        muss der Setup-Modus aktiviert werden (siehe
+        <code>installer/hotel-display-wifi-fallback-setup.sh</code>).
+    </div>
+    {% endif %}
+    {% endif %}
+</div>
+</body>
+</html>
