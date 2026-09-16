@@ -350,9 +350,13 @@
 </main>
 
 <!-- Login Overlay -->
-<div class="login-overlay" id="login-overlay">
-    <h2>Mitarbeiter-Login</h2>
-    <p style="color: var(--text-dim); font-size:0.9rem;">4-stelligen Code eingeben:</p>
+<!-- Login Overlay mit Touch-Tastatur: standardmaessig sichtbar (kein Flash
+     der Notizen vor dem ersten /whoami-Check), gesperrt bis ein gueltiger
+     Mitarbeiter-Code eingegeben wird (kein "Abbrechen" - ohne Login gibt
+     es auf dieser Seite nichts zu sehen). -->
+<div class="login-overlay show" id="login-overlay">
+    <h2>🔒 Gesperrt</h2>
+    <p style="color: var(--text-dim); font-size:0.9rem;">4-stelligen Mitarbeiter-Code eingeben:</p>
     <div class="code-display">
         <div class="code-dot" data-idx="0"></div>
         <div class="code-dot" data-idx="1"></div>
@@ -376,7 +380,6 @@
     <div class="login-error" id="login-error"></div>
     <div class="login-buttons">
         <button class="login-submit" onclick="submitLogin()">Einloggen</button>
-        <button class="login-cancel" onclick="hideLogin()">Abbrechen</button>
     </div>
 </div>
 
@@ -385,19 +388,68 @@
     let employee = null;
     let pollHandle = null;
     let codeBuffer = '';
+    let locked = true; // Default: gesperrt, bis /whoami eine gueltige Session bestaetigt
+
+    // Idle-Timeout: muss zum Backend (app.py IDLE_TIMEOUT_SECONDS) passen.
+    // Rein clientseitig fuer sofortiges Sperren ohne auf den naechsten
+    // 8s-Poll zu warten - das Backend erzwingt denselben Timeout serverseitig
+    // als Backstop, siehe get_current_employee().
+    const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
+    let idleTimer = null;
+    let lastActivityPing = 0;
+
+    // ===== Sperr-Bildschirm =====
+    function lockScreen() {
+        locked = true;
+        currentNotes = [];
+        document.getElementById('notes-list').innerHTML = '';
+        document.getElementById('login-overlay').classList.add('show');
+        clearTimeout(idleTimer);
+        codeBuffer = '';
+        updateCodeDisplay();
+    }
+
+    function unlockScreen() {
+        locked = false;
+        document.getElementById('login-overlay').classList.remove('show');
+        document.getElementById('login-error').textContent = '';
+        resetIdleTimer();
+    }
+
+    function resetIdleTimer() {
+        clearTimeout(idleTimer);
+        if (locked) return;
+        idleTimer = setTimeout(logout, IDLE_TIMEOUT_MS);
+    }
+
+    function pingActivity() {
+        if (locked) return;
+        resetIdleTimer();
+        const now = Date.now();
+        if (now - lastActivityPing < 20000) return; // throttle, nicht bei jedem Touch pingen
+        lastActivityPing = now;
+        fetch('/api/touch', { method: 'POST' }).catch(() => {});
+    }
+    ['touchstart', 'mousedown', 'keydown'].forEach(evt => {
+        document.addEventListener(evt, pingActivity, { passive: true });
+    });
 
     // ===== Init =====
     document.addEventListener('DOMContentLoaded', () => {
-        loadNotes();
         loadWhoAmI();
-        pollHandle = setInterval(loadNotes, 8000); // alle 8s — Log aendert sich selten
+        pollHandle = setInterval(loadNotes, 8000); // alle 8s — Log aendert sich selten (nur wirksam wenn eingeloggt)
         setupTouchKeyboard();
     });
 
     // ===== API: Notes laden =====
     async function loadNotes() {
+        if (locked) return; // kein Polling waehrend gesperrt (nichts zu holen)
         try {
             const res = await fetch('/api/handover?limit=100');
+            if (res.status === 401) {
+                lockScreen(); // Session serverseitig abgelaufen (Idle-Timeout)
+                return;
+            }
             const data = await res.json();
             renderNotes(data.notes || []);
             document.getElementById('last-update').textContent =
@@ -547,6 +599,8 @@
                 loginBtn.textContent = 'Logout';
                 loginBtn.classList.remove('danger');
                 loginBtn.onclick = logout;
+                unlockScreen();
+                loadNotes();
             } else {
                 employee = null;
                 whoEl.textContent = '';
@@ -555,6 +609,7 @@
                 loginBtn.textContent = 'Login';
                 loginBtn.classList.add('danger');
                 loginBtn.onclick = showLogin;
+                lockScreen();
             }
             renderNotes(currentNotes);
         } catch (err) {
@@ -571,15 +626,9 @@
 
     // ===== Login / Logout =====
     function showLogin() {
-        document.getElementById('login-overlay').classList.add('show');
-        document.getElementById('login-error').textContent = '';
-        codeBuffer = '';
-        updateCodeDisplay();
-    }
-    function hideLogin() {
-        document.getElementById('login-overlay').classList.remove('show');
-        codeBuffer = '';
-        updateCodeDisplay();
+        // Der Sperrbildschirm ist bereits der Login-Screen - nur zur
+        // Sicherheit falls je aus unlocked-Zustand aufgerufen.
+        lockScreen();
     }
     async function submitLogin() {
         if (codeBuffer.length !== 4) {
@@ -594,9 +643,7 @@
             });
             const data = await res.json();
             if (data.ok) {
-                hideLogin();
                 loadWhoAmI();
-                loadNotes();
             } else {
                 document.getElementById('login-error').textContent = data.error || 'Login fehlgeschlagen';
                 shakeCodeDots();
@@ -608,10 +655,11 @@
     async function logout() {
         try {
             await fetch('/logout', { method: 'POST' });
-            loadWhoAmI();
         } catch (err) {
             console.error('Logout fehlgeschlagen:', err);
         }
+        lockScreen();
+        loadWhoAmI();
     }
 
     // ===== Touch-Tastatur =====
