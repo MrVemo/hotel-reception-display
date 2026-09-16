@@ -106,6 +106,15 @@ def test_display_web_html_no_touch_keyboard(client):
     )
 
 
+def test_js_only_auto_attaches_on_coarse_pointer():
+    """Regression: das Auto-Overlay darf nicht auf jedem Geraet erscheinen -
+    form.html/handover.html sind auch vom PC im Hotel-WLAN erreichbar, der
+    hat eine echte Tastatur. Gate ueber matchMedia('(pointer: coarse)')."""
+    js = _read("src/static/touch-keyboard.js")
+    assert "pointer: coarse" in js, "JS prueft nicht auf grobes Zeigegeraet (Touch)"
+    assert "hasCoarsePointer" in js, "JS hat keine hasCoarsePointer()-Gate-Funktion"
+
+
 def test_js_handles_textarea_and_input():
     """JS hookt textarea UND input — Item-Text ist textarea, Hex-Color ist input."""
     js = _read("src/static/touch-keyboard.js")

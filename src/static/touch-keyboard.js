@@ -6,7 +6,11 @@
  *
  * Oder via auto-attach beim DOMContentLoaded: jeder <input type="text">,
  * <input type="search">, <input> ohne type (default text) und jede <textarea>
- * bekommt automatisch eine Touch-Tastatur, sobald er fokussiert wird.
+ * bekommt automatisch eine Touch-Tastatur, sobald er fokussiert wird -
+ * ABER NUR auf Geraeten mit grobem Zeigegerät (matchMedia '(pointer: coarse)',
+ * also Touch statt Maus/Trackpad). form.html und handover.html sind sowohl
+ * vom Kiosk als auch von PCs im Hotel-WLAN erreichbar; auf einem PC waere
+ * das Overlay bei jedem Feld-Fokus nur im Weg, der hat ja eine echte Tastatur.
  *
  * Multi-Touch: ein einziges Keyboard wird zwischen Inputs geteilt; bei
  * Wechsel des Fokus wandert der Cursor (caret position) erhalten.
@@ -270,7 +274,22 @@
         return !nonTextTypes.includes(t);
     }
 
+    function hasCoarsePointer() {
+        // 'pointer: coarse' = primäres Zeigegerät ist ungenau (Touch), im
+        // Gegensatz zu 'pointer: fine' (Maus/Trackpad). Damit unterscheiden
+        // wir zuverlässig Kiosk/Handy (brauchen die Tastatur) von einem PC
+        // im Hotel-WLAN (hat eine echte Tastatur, UA-Sniffing versagt hier
+        // weil das Kiosk-Chromium sich wie ein normaler Desktop-Browser
+        // ausgibt, siehe app.py index()).
+        return typeof window.matchMedia === 'function' &&
+               window.matchMedia('(pointer: coarse)').matches;
+    }
+
     function attach() {
+        // Auto-Attach nur auf Touch-Geraeten (Kiosk/Handy) - ein PC hat eine
+        // echte Tastatur, da waere das Overlay bei jedem Feld-Fokus nur im Weg.
+        if (!hasCoarsePointer()) return;
+
         // Auto-Attach: jeder Input/Textarea im Dokument
         document.addEventListener('focusin', (e) => {
             if (isTextInput(e.target)) showKeyboard(e.target);
