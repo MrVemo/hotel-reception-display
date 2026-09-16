@@ -314,13 +314,60 @@
     let networkHandle = null;
     let brandingHandle = null;
     let isLoading = false;
+    let locked = true; // Default: gesperrt, bis /whoami eine gueltige Session bestaetigt
+
+    // Idle-Timeout: muss zum Backend (app.py IDLE_TIMEOUT_SECONDS) passen.
+    // Rein clientseitig fuer sofortiges Sperren, Backend erzwingt denselben
+    // Timeout serverseitig als Backstop (get_current_employee()).
+    const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
+    let idleTimer = null;
+    let lastActivityPing = 0;
+
+    // ===== Sperr-Bildschirm =====
+    function lockScreen() {
+        locked = true;
+        items = [];
+        clearTimeout(idleTimer);
+        const container = document.getElementById('items-container');
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="icon">🔒</div>
+                <div class="title">Gesperrt</div>
+                <div>Aufgaben und Übergabeprotokoll sind nur für eingeloggte Mitarbeiter sichtbar. <a href="#" onclick="showLogin(); return false;" style="color:var(--primary);text-decoration:underline;">Jetzt einloggen</a>.</div>
+            </div>
+        `;
+        document.getElementById('stats-line').textContent = '';
+        showLogin();
+    }
+
+    function unlockScreen() {
+        locked = false;
+        resetIdleTimer();
+    }
+
+    function resetIdleTimer() {
+        clearTimeout(idleTimer);
+        if (locked) return;
+        idleTimer = setTimeout(logout, IDLE_TIMEOUT_MS);
+    }
+
+    function pingActivity() {
+        if (locked) return;
+        resetIdleTimer();
+        const now = Date.now();
+        if (now - lastActivityPing < 20000) return; // throttle, nicht bei jedem Touch pingen
+        lastActivityPing = now;
+        fetch('/api/touch', { method: 'POST' }).catch(() => {});
+    }
+    ['touchstart', 'mousedown', 'keydown'].forEach(evt => {
+        document.addEventListener(evt, pingActivity, { passive: true });
+    });
 
     // ===== Initial =====
     document.addEventListener('DOMContentLoaded', () => {
         // Sort-Buttons initial markieren
         setSort(currentSort, false);
 
-        loadItems();
         loadWhoAmI();
         loadNetworkInfo();
         loadBranding();
@@ -330,9 +377,10 @@
         networkHandle = setInterval(loadNetworkInfo, 60000);
         brandingHandle = setInterval(loadBranding, 30000);
 
-        // Login-Modal: ESC schließt
+        // Login-Modal: ESC schließt (nur wenn schon eingeloggt - sonst gibt's
+        // nichts zu sehen ausser dem Sperr-Platzhalter)
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') hideLogin();
+            if (e.key === 'Escape' && !locked) hideLogin();
         });
 
         // IP-Footer: Click-to-Copy
@@ -363,10 +411,15 @@
 
     // ===== API: Items laden =====
     async function loadItems(silent = false) {
+        if (locked) return; // kein Polling waehrend gesperrt (nichts zu holen)
         if (isLoading) return;
         isLoading = true;
         try {
             const res = await fetch('/items', { cache: 'no-store' });
+            if (res.status === 401) {
+                lockScreen(); // Session serverseitig abgelaufen (Idle-Timeout)
+                return;
+            }
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data = await res.json();
             items = data.items || [];
@@ -407,6 +460,8 @@
                 btn.classList.remove('success');
                 btn.classList.add('danger');
                 btn.onclick = logout;
+                unlockScreen();
+                loadItems();
             } else {
                 employee = null;
                 document.getElementById('who-badge').style.display = 'none';
@@ -415,8 +470,8 @@
                 btn.classList.add('success');
                 btn.classList.remove('danger');
                 btn.onclick = showLogin;
+                lockScreen();
             }
-            renderItems(); // Buttons aktivieren/deaktivieren
         } catch (err) {
             console.error('Whoami fehlgeschlagen:', err);
         }
@@ -649,7 +704,6 @@
             if (data.ok) {
                 hideLogin();
                 loadWhoAmI();
-                loadItems();
                 showToast(`Eingeloggt als ${data.employee.name}`, 'success');
             } else {
                 document.getElementById('login-error').textContent = data.error || 'Login fehlgeschlagen';
@@ -666,12 +720,12 @@
     async function logout() {
         try {
             await fetch('/logout', { method: 'POST' });
-            loadWhoAmI();
-            loadItems();
             showToast('Ausgeloggt', 'success');
         } catch (err) {
             showToast('Logout fehlgeschlagen', 'error');
         }
+        lockScreen();
+        loadWhoAmI();
     }
 
     // ===== Toast =====

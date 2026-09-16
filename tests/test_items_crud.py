@@ -6,7 +6,7 @@ Deckt ab:
 - POST mit leerem Text → 400
 - POST mit Default-Deadline (heute 18:00) wenn nicht angegeben
 - GET liefert nur offene Items, sortiert nach Deadline
-- GET als anonymous ist erlaubt (oeffentliches Display)
+- GET erfordert Login (Aufgaben sind kein oeffentliches Display mehr)
 - PATCH erlaubt Text/Deadline/assigned_to zu aendern
 - POST /items/<id>/done markiert als erledigt
 - DELETE entfernt das Item
@@ -51,9 +51,15 @@ def test_create_item_default_deadline_today(admin_client):
     assert item["deadline_display"] is not None
 
 
-def test_get_items_public(client, sample_item):
-    """GET /items ist oeffentlich (Display-Anzeige braucht kein Login)."""
+def test_get_items_requires_login(client, sample_item):
+    """GET /items ohne Login -> 401 (Aufgaben nur fuer eingeloggte Mitarbeiter sichtbar)."""
     resp = client.get("/items")
+    assert resp.status_code == 401
+
+
+def test_get_items_logged_in(admin_client, sample_item):
+    """GET /items mit Login liefert die offenen Items."""
+    resp = admin_client.get("/items")
     assert resp.status_code == 200
     data = resp.get_json()
     assert "items" in data

@@ -1,7 +1,7 @@
 """Tests fuer Handover-Notizen (/api/handover GET/POST/DELETE).
 
 Deckt ab:
-- GET ist oeffentlich (kein Login) — das Log soll auch ohne Login lesbar sein
+- GET erfordert Login (Notizen sind nicht mehr oeffentlich lesbar)
 - POST erfordert Login, aber KEIN Admin
 - POST auch als non-Admin erlaubt
 - POST mit leerem Text → 400
@@ -19,57 +19,64 @@ import db as db_module
 
 # ===== GET /api/handover =====
 
-def test_get_handover_public(client):
-    """GET /api/handover ist oeffentlich lesbar — Log soll jeder sehen."""
+def test_get_handover_requires_login(client):
+    """Regression: GET /api/handover ohne Login -> 401 (Notizen koennen
+    Gast-/Zimmerbezug haben)."""
     resp = client.get("/api/handover")
+    assert resp.status_code == 401
+
+
+def test_get_handover_logged_in(admin_client):
+    """GET /api/handover mit Login liefert die Notizen."""
+    resp = admin_client.get("/api/handover")
     assert resp.status_code == 200
     data = resp.get_json()
     assert "notes" in data
     assert "count" in data
 
 
-def test_get_handover_empty_initially(client):
+def test_get_handover_empty_initially(admin_client):
     """Frische DB hat keine Notizen."""
-    data = client.get("/api/handover").get_json()
+    data = admin_client.get("/api/handover").get_json()
     assert data["count"] == 0
     assert data["notes"] == []
 
 
-def test_get_handover_newest_first(client, admin_client):
+def test_get_handover_newest_first(admin_client):
     """Notizen werden neueste-zuerst sortiert."""
     admin_client.post("/api/handover", json={"text": "Erste"})
     admin_client.post("/api/handover", json={"text": "Zweite"})
     admin_client.post("/api/handover", json={"text": "Dritte"})
 
-    notes = client.get("/api/handover").get_json()["notes"]
+    notes = admin_client.get("/api/handover").get_json()["notes"]
     # Neueste zuerst → "Dritte" zuerst
     assert notes[0]["text"] == "Dritte"
     assert notes[-1]["text"] == "Erste"
 
 
-def test_get_handover_limit(client, admin_client):
+def test_get_handover_limit(admin_client):
     """?limit=N begrenzt die Anzahl."""
     for i in range(5):
         admin_client.post("/api/handover", json={"text": f"Note {i}"})
 
-    resp = client.get("/api/handover?limit=2")
+    resp = admin_client.get("/api/handover?limit=2")
     data = resp.get_json()
     assert data["count"] == 2
 
 
-def test_get_handover_limit_bounded(client, admin_client):
+def test_get_handover_limit_bounded(admin_client):
     """?limit>500 wird auf 500 begrenzt (DoS-Schutz)."""
-    resp = client.get("/api/handover?limit=10000")
+    resp = admin_client.get("/api/handover?limit=10000")
     # Sollte nicht crashen, und count <= 500
     assert resp.status_code == 200
     data = resp.get_json()
     assert data["count"] <= 500
 
 
-def test_get_handover_includes_employee_name(client, admin_client):
+def test_get_handover_includes_employee_name(admin_client):
     """Notizen enthalten employee_name via JOIN."""
     admin_client.post("/api/handover", json={"text": "Mit Autor"})
-    notes = client.get("/api/handover").get_json()["notes"]
+    notes = admin_client.get("/api/handover").get_json()["notes"]
     assert notes[0]["employee_name"] == "Admin"
 
 

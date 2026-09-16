@@ -263,15 +263,6 @@
             min-height: 48px;
         }
 
-        .login-cancel {
-            background: transparent;
-            color: #d8cfc0;
-            border: 1px solid #6a5f4f;
-            padding: 10px 18px;
-            border-radius: var(--radius-sm);
-            font-family: var(--font-body);
-            cursor: pointer;
-        }
 
         .login-error { color: #ff8a80; font-size: 0.95rem; min-height: 1.4rem; }
 
@@ -331,17 +322,15 @@
         </div>
     </header>
 
-    <div class="items-container" id="items-container">
-        <div class="empty-state">
-            <div class="icon">📋</div>
-            <div>Lade Aufgaben…</div>
-        </div>
-    </div>
+    <div class="items-container" id="items-container"></div>
 
-    <!-- Login Overlay mit Touch-Tastatur -->
-    <div class="login-overlay" id="login-overlay">
-        <h2>Mitarbeiter-Login</h2>
-        <p>4-stelligen Code eingeben:</p>
+    <!-- Login Overlay mit Touch-Tastatur: standardmaessig sichtbar (kein Flash
+         der Aufgaben vor dem ersten /whoami-Check), gesperrt bis ein gueltiger
+         Mitarbeiter-Code eingegeben wird (kein "Abbrechen" - ohne Login gibt
+         es nichts zu sehen). -->
+    <div class="login-overlay show" id="login-overlay">
+        <h2>🔒 Gesperrt</h2>
+        <p>4-stelligen Mitarbeiter-Code eingeben:</p>
 
         <!-- Code-Anzeige -->
         <div class="code-display">
@@ -371,7 +360,6 @@
 
         <div class="login-buttons">
             <button class="login-submit" onclick="submitLogin()">Einloggen</button>
-            <button class="login-cancel" onclick="hideLogin()">Abbrechen</button>
         </div>
     </div>
 
@@ -380,13 +368,56 @@
         let currentSort = 'urgent';
         let items = [];
         let employee = null;
+        let locked = true; // Default: gesperrt, bis /whoami eine gueltige Session bestaetigt
+
+        // Idle-Timeout: muss zum Backend (app.py IDLE_TIMEOUT_SECONDS) passen.
+        // Rein clientseitig fuer sofortiges Sperren ohne auf den naechsten
+        // 5s-Poll zu warten - das Backend erzwingt denselben Timeout serverseitig
+        // als Backstop, siehe get_current_employee().
+        const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
+        let idleTimer = null;
+        let lastActivityPing = 0;
+
+        // ===== Sperr-Bildschirm =====
+        function lockScreen() {
+            locked = true;
+            items = [];
+            document.getElementById('items-container').innerHTML = '';
+            document.getElementById('login-overlay').classList.add('show');
+            clearTimeout(idleTimer);
+            if (typeof window.__clearCodeBuffer === 'function') window.__clearCodeBuffer();
+        }
+
+        function unlockScreen() {
+            locked = false;
+            document.getElementById('login-overlay').classList.remove('show');
+            document.getElementById('login-error').textContent = '';
+            resetIdleTimer();
+        }
+
+        function resetIdleTimer() {
+            clearTimeout(idleTimer);
+            if (locked) return;
+            idleTimer = setTimeout(logout, IDLE_TIMEOUT_MS);
+        }
+
+        function pingActivity() {
+            if (locked) return;
+            resetIdleTimer();
+            const now = Date.now();
+            if (now - lastActivityPing < 20000) return; // throttle, nicht bei jedem Touch pingen
+            lastActivityPing = now;
+            fetch('/api/touch', { method: 'POST' }).catch(() => {});
+        }
+        ['touchstart', 'mousedown', 'keydown'].forEach(evt => {
+            document.addEventListener(evt, pingActivity, { passive: true });
+        });
 
         // ===== Initial =====
         document.addEventListener('DOMContentLoaded', () => {
-            loadItems();
             loadWhoAmI();
             loadTheme();
-            setInterval(loadItems, 5000); // alle 5s refresh
+            setInterval(loadItems, 5000); // alle 5s refresh (nur wirksam wenn eingeloggt)
             setInterval(loadTheme, 15000); // Theme-Wechsel von anderen Geraeten uebernehmen
         });
 
@@ -407,8 +438,13 @@
 
         // ===== API: Items laden =====
         async function loadItems() {
+            if (locked) return; // kein Polling waehrend gesperrt (nichts zu holen)
             try {
                 const res = await fetch('/items');
+                if (res.status === 401) {
+                    lockScreen(); // Session serverseitig abgelaufen (Idle-Timeout)
+                    return;
+                }
                 const data = await res.json();
                 items = data.items || [];
                 renderItems();
@@ -429,11 +465,14 @@
                     document.getElementById('who').textContent = `👤 ${employee.name}`;
                     document.getElementById('login-btn').textContent = 'Logout';
                     document.getElementById('login-btn').onclick = logout;
+                    unlockScreen();
+                    loadItems();
                 } else {
                     employee = null;
                     document.getElementById('who').textContent = '';
                     document.getElementById('login-btn').textContent = 'Login';
                     document.getElementById('login-btn').onclick = showLogin;
+                    lockScreen();
                 }
             } catch (err) {
                 console.error('Whoami fehlgeschlagen:', err);
@@ -614,14 +653,9 @@
 
         // ===== Login =====
         function showLogin() {
-            document.getElementById('login-overlay').classList.add('show');
-            document.getElementById('login-error').textContent = '';
-            if (typeof window.__clearCodeBuffer === 'function') window.__clearCodeBuffer();
-        }
-
-        function hideLogin() {
-            document.getElementById('login-overlay').classList.remove('show');
-            if (typeof window.__clearCodeBuffer === 'function') window.__clearCodeBuffer();
+            // Der Sperrbildschirm ist bereits der Login-Screen - nur zur
+            // Sicherheit falls je aus unlocked-Zustand aufgerufen.
+            lockScreen();
         }
 
         async function submitLogin() {
@@ -638,9 +672,7 @@
                 });
                 const data = await res.json();
                 if (data.ok) {
-                    hideLogin();
                     loadWhoAmI();
-                    loadItems();
                 } else {
                     document.getElementById('login-error').textContent = data.error || 'Login fehlgeschlagen';
                 }
@@ -652,11 +684,11 @@
         async function logout() {
             try {
                 await fetch('/logout', { method: 'POST' });
-                loadWhoAmI();
-                loadItems();
             } catch (err) {
                 console.error('Logout fehlgeschlagen:', err);
             }
+            lockScreen();
+            loadWhoAmI();
         }
 
         // ===== Utilities =====

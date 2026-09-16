@@ -23,6 +23,7 @@ from flask import Flask, request, jsonify, session, render_template, render_temp
 from datetime import datetime, timedelta
 import os
 import json
+import time
 from pathlib import Path
 
 from db import (
@@ -361,11 +362,32 @@ CHANGELOG_PATH = REPO_ROOT / "CHANGELOG.md"
 
 # Templates sind jetzt in src/templates/display.html etc.
 
+# Sicherheits-Feature: Aufgaben/Uebergabeprotokoll sind nur fuer eingeloggte
+# Mitarbeiter sichtbar (nicht mehr ambient fuer jeden am Kiosk/im Hotel-WLAN),
+# und die Session laeuft bei Inaktivitaet automatisch ab ("Feierabend" -> Display
+# zeigt ohne gueltigen Mitarbeiter-Code keine Gast-/Zimmerdaten mehr an).
+IDLE_TIMEOUT_SECONDS = 5 * 60
+
+
+def mark_activity():
+    """Markiert echte Nutzer-Interaktion (fuer den Idle-Timeout). NICHT auf
+    reinen Lese-/Polling-Endpoints aufrufen, sonst haelt staendiges Auto-Refresh
+    die Session trotz Inaktivitaet am Leben."""
+    session['last_activity'] = time.time()
+
 
 def get_current_employee():
-    """Holt den eingeloggten Mitarbeiter aus der Session, oder None."""
+    """Holt den eingeloggten Mitarbeiter aus der Session, oder None.
+
+    Loggt bei Ueberschreiten von IDLE_TIMEOUT_SECONDS seit der letzten echten
+    Aktivitaet automatisch aus (Session wird geleert).
+    """
     emp_id = session.get('employee_id')
     if not emp_id:
+        return None
+    last_activity = session.get('last_activity')
+    if last_activity is None or (time.time() - last_activity) > IDLE_TIMEOUT_SECONDS:
+        session.clear()
         return None
     db = get_db()
     emp = db.execute("SELECT * FROM employees WHERE id = ? AND active = 1", (emp_id,)).fetchone()
@@ -374,7 +396,11 @@ def get_current_employee():
 
 
 def require_login(f):
-    """Decorator: Endpoint nur für eingeloggte Mitarbeiter."""
+    """Decorator: Endpoint nur für eingeloggte Mitarbeiter.
+
+    Reine Lese-Endpoints (Polling) verwenden diesen Decorator OHNE
+    Aktivitaets-Refresh, siehe touch_activity() fuer echte Interaktionen.
+    """
     from functools import wraps
     @wraps(f)
     def wrapper(*args, **kwargs):
@@ -384,11 +410,26 @@ def require_login(f):
     return wrapper
 
 
+def touch_activity(f):
+    """Wie require_login, markiert zusaetzlich echte Nutzer-Aktivitaet und
+    haelt damit die Session am Leben. Fuer Endpoints die eine bewusste
+    Mitarbeiter-Handlung darstellen (Aufgabe anlegen/erledigen, Notiz
+    schreiben, ...) - nicht fuer Auto-Polling-Endpoints verwenden."""
+    from functools import wraps
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if not get_current_employee():
+            return jsonify({"error": "not authenticated"}), 401
+        mark_activity()
+        return f(*args, **kwargs)
+    return wrapper
+
+
 def require_admin(f):
     """Decorator: Endpoint nur fuer Admins.
 
     Gibt 401 wenn nicht eingeloggt, 403 wenn eingeloggt aber kein Admin.
-    Setzt require_login voraus.
+    Setzt require_login voraus. Markiert Aktivitaet wie touch_activity().
     """
     from functools import wraps
     @wraps(f)
@@ -399,6 +440,7 @@ def require_admin(f):
         # get_current_employee() liefert sqlite3.Row (kein .get), daher Index-Zugriff
         if not emp['is_admin']:
             return jsonify({"error": "Keine Admin-Rechte"}), 403
+        mark_activity()
         return f(*args, **kwargs)
     return wrapper
 
@@ -729,6 +771,7 @@ def login():
 
     session['employee_id'] = emp['id']
     session['employee_name'] = emp['name']
+    mark_activity()
     log_action(emp['id'], 'login')
 
     return jsonify({
@@ -765,9 +808,19 @@ def whoami():
     return jsonify({"logged_in": False})
 
 
+@app.route('/api/touch', methods=['POST'])
+@touch_activity
+def api_touch():
+    """Leichtgewichtiger Aktivitaets-Ping vom Frontend (Touch/Klick/Taste),
+    haelt eine eingeloggte Session waehrend echter Nutzung am Leben, ohne dass
+    das normale 5s-Polling der Ansichten das faelschlich uebernimmt."""
+    return jsonify({"ok": True})
+
+
 # ===== Items CRUD =====
 
 @app.route('/items', methods=['GET'])
+@require_login
 def get_items():
     """Alle offenen Items, sortiert nach Deadline (Dringlichkeit)."""
     db = get_db()
@@ -804,7 +857,7 @@ def get_items():
 
 
 @app.route('/items', methods=['POST'])
-@require_login
+@touch_activity
 def create_item():
     """Neues Item anlegen."""
     data = request.get_json() or {}
@@ -836,7 +889,7 @@ def create_item():
 
 
 @app.route('/items/<int:item_id>', methods=['PATCH'])
-@require_login
+@touch_activity
 def update_item(item_id):
     """Item bearbeiten (Text, Deadline, assigned_to)."""
     data = request.get_json() or {}
@@ -872,7 +925,7 @@ def update_item(item_id):
 
 
 @app.route('/items/<int:item_id>/done', methods=['POST'])
-@require_login
+@touch_activity
 def mark_done(item_id):
     """Item als erledigt markieren."""
     emp = get_current_employee()
@@ -900,7 +953,7 @@ def mark_done(item_id):
 
 
 @app.route('/items/<int:item_id>', methods=['DELETE'])
-@require_login
+@touch_activity
 def delete_item(item_id):
     """Item löschen (hard delete).
 
@@ -1026,9 +1079,11 @@ def api_generate_code():
 # ===== Handover (Schicht-Übergabe-Log) =====
 
 @app.route('/api/handover', methods=['GET'])
+@require_login
 def api_list_handover():
-    """Letzte N Handover-Einträge, neueste zuerst. Öffentlich (kein Login nötig,
-    damit's auch ohne Login gelesen werden kann)."""
+    """Letzte N Handover-Einträge, neueste zuerst. Login erforderlich (Notizen
+    koennen Gast-/Zimmerbezug haben, sollen ohne eingeloggten Mitarbeiter
+    nicht sichtbar sein)."""
     limit = request.args.get('limit', 50, type=int)
     limit = max(1, min(limit, 500))  # bounded, sonst DOS-Risiko
     db = get_db()
@@ -1048,7 +1103,7 @@ def api_list_handover():
 
 
 @app.route('/api/handover', methods=['POST'])
-@require_login
+@touch_activity
 def api_create_handover():
     """Neuen Handover-Eintrag anlegen. Jeder eingeloggte Mitarbeiter, kein Admin nötig."""
     data = request.get_json() or {}
@@ -1073,7 +1128,7 @@ def api_create_handover():
 
 
 @app.route('/api/handover/<int:note_id>', methods=['DELETE'])
-@require_login
+@touch_activity
 def api_delete_handover(note_id):
     """Handover-Eintrag löschen — nur Admin (Tippfehler-Korrekturen)."""
     emp = get_current_employee()
