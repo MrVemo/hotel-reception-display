@@ -115,6 +115,19 @@ def test_js_only_auto_attaches_on_coarse_pointer():
     assert "hasCoarsePointer" in js, "JS hat keine hasCoarsePointer()-Gate-Funktion"
 
 
+def test_js_touch_detection_uses_multiple_signals():
+    """Regression (2026-09-17): 'pointer: coarse' allein war auf dem echten
+    Kiosk-Pi unzuverlaessig (Touchscreen-Treiber meldet sich dort teils als
+    praezises/mausaehnliches Zeigegeraet) - die Tastatur verschwand dadurch
+    auch am Kiosk. maxTouchPoints/ontouchstart als treiberunabhaengige
+    Zusatz-Signale muessen vorhanden sein, sonst faellt die Erkennung wieder
+    auf ein einzelnes, nachweislich unzuverlaessiges Signal zurueck."""
+    js = _read("src/static/touch-keyboard.js")
+    assert "ontouchstart" in js, "JS prueft nicht auf ontouchstart"
+    assert "maxTouchPoints" in js, "JS prueft nicht auf navigator.maxTouchPoints"
+    assert "any-pointer: coarse" in js, "JS prueft nicht auf any-pointer: coarse"
+
+
 def test_js_handles_textarea_and_input():
     """JS hookt textarea UND input — Item-Text ist textarea, Hex-Color ist input."""
     js = _read("src/static/touch-keyboard.js")

@@ -7,10 +7,10 @@
  * Oder via auto-attach beim DOMContentLoaded: jeder <input type="text">,
  * <input type="search">, <input> ohne type (default text) und jede <textarea>
  * bekommt automatisch eine Touch-Tastatur, sobald er fokussiert wird -
- * ABER NUR auf Geraeten mit grobem Zeigegerät (matchMedia '(pointer: coarse)',
- * also Touch statt Maus/Trackpad). form.html und handover.html sind sowohl
- * vom Kiosk als auch von PCs im Hotel-WLAN erreichbar; auf einem PC waere
- * das Overlay bei jedem Feld-Fokus nur im Weg, der hat ja eine echte Tastatur.
+ * ABER NUR auf Touch-Geraeten, siehe hasCoarsePointer(). form.html und
+ * handover.html sind sowohl vom Kiosk als auch von PCs im Hotel-WLAN
+ * erreichbar; auf einem PC waere das Overlay bei jedem Feld-Fokus nur im
+ * Weg, der hat ja eine echte Tastatur.
  *
  * Multi-Touch: ein einziges Keyboard wird zwischen Inputs geteilt; bei
  * Wechsel des Fokus wandert der Cursor (caret position) erhalten.
@@ -275,19 +275,46 @@
     }
 
     function hasCoarsePointer() {
-        // 'pointer: coarse' = primäres Zeigegerät ist ungenau (Touch), im
-        // Gegensatz zu 'pointer: fine' (Maus/Trackpad). Damit unterscheiden
-        // wir zuverlässig Kiosk/Handy (brauchen die Tastatur) von einem PC
-        // im Hotel-WLAN (hat eine echte Tastatur, UA-Sniffing versagt hier
-        // weil das Kiosk-Chromium sich wie ein normaler Desktop-Browser
-        // ausgibt, siehe app.py index()).
-        return typeof window.matchMedia === 'function' &&
-               window.matchMedia('(pointer: coarse)').matches;
+        // Touch-Erkennung ueber MEHRERE Signale, ODER-verknuepft - ein
+        // einzelnes Signal reicht nicht: 'pointer: coarse' allein hat sich
+        // auf dem echten Kiosk-Pi als unzuverlaessig erwiesen (der
+        // Touchscreen-Treiber meldet den Touch dort offenbar als
+        // mausaehnliches, praezises Zeigegeraet statt als Touch - bekannter
+        // Stolperstein bei manchen evdev/X11-Touch-Treibern, siehe
+        // Regression 2026-09-17: Tastatur verschwand nach der pointer:coarse-
+        // only-Variante auch am Kiosk, obwohl der ja Touch-only ist).
+        // maxTouchPoints/ontouchstart bleiben davon unabhaengig - die
+        // meldet der Kernel-Treiber unabhaengig von der Pointer-Klassifizierung.
+        // Ein normaler PC (Maus/Trackpad, keine Touch-Hardware) hat bei
+        // KEINEM dieser Signale einen Treffer, bleibt also weiterhin ohne
+        // Overlay.
+        if ('ontouchstart' in window) return true;
+        if (navigator.maxTouchPoints > 0) return true;
+        if (typeof window.matchMedia === 'function') {
+            if (window.matchMedia('(pointer: coarse)').matches) return true;
+            if (window.matchMedia('(any-pointer: coarse)').matches) return true;
+        }
+        return false;
+    }
+
+    function pointerDebugInfo() {
+        // Rohe Signal-Werte fuer Fehlersuche direkt in der Devtools-Konsole
+        // (z.B. per chrome://inspect auf den Kiosk) - falls hasCoarsePointer()
+        // nochmal auf einem Geraet daneben liegt, sieht man hier sofort welches
+        // der vier Signale gefehlt hat.
+        return {
+            ontouchstart: 'ontouchstart' in window,
+            maxTouchPoints: navigator.maxTouchPoints,
+            pointerCoarse: typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches,
+            anyPointerCoarse: typeof window.matchMedia === 'function' && window.matchMedia('(any-pointer: coarse)').matches,
+            result: hasCoarsePointer()
+        };
     }
 
     function attach() {
         // Auto-Attach nur auf Touch-Geraeten (Kiosk/Handy) - ein PC hat eine
         // echte Tastatur, da waere das Overlay bei jedem Feld-Fokus nur im Weg.
+        console.log('[touch-keyboard] Pointer-Erkennung:', pointerDebugInfo());
         if (!hasCoarsePointer()) return;
 
         // Auto-Attach: jeder Input/Textarea im Dokument
@@ -325,6 +352,9 @@
     window.touchKeyboard = {
         show: showKeyboard,
         hide: hideKeyboard,
+        // Debug-Hook: rohe Pointer-Erkennungs-Signale, z.B. ueber Devtools-
+        // Konsole auf dem Kiosk pruefen mit: touchKeyboard.pointerDebugInfo()
+        pointerDebugInfo: pointerDebugInfo,
         // Test-Hook: sichtbar ohne Input-Fokus (fuer visuelle Verifikation)
         _testShow: () => {
             if (!keyboardEl) buildKeyboard();
