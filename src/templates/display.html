@@ -306,7 +306,7 @@
             <span style="font-size:1.5rem;">🏨</span>
             {% endif %}
             <div>
-                <h1>{{ branding.hotel_name }}</h1>
+                {% if not branding.logo_url %}<h1>{{ branding.hotel_name }}</h1>{% endif %}
                 <div class="last-update" id="last-update">Lade…</div>
             </div>
         </div>
@@ -385,8 +385,25 @@
         document.addEventListener('DOMContentLoaded', () => {
             loadItems();
             loadWhoAmI();
+            loadTheme();
             setInterval(loadItems, 5000); // alle 5s refresh
+            setInterval(loadTheme, 15000); // Theme-Wechsel von anderen Geraeten uebernehmen
         });
+
+        // ===== Theme live nachladen (z.B. Wechsel von der Web-Ansicht aus) =====
+        async function loadTheme() {
+            try {
+                const res = await fetch('/api/branding');
+                const cfg = await res.json();
+                if (cfg.theme && document.documentElement.getAttribute('data-theme') !== cfg.theme) {
+                    document.documentElement.setAttribute('data-theme', cfg.theme);
+                    const toggle = document.querySelector('[data-theme-toggle]');
+                    if (toggle) toggle.textContent = cfg.theme === 'dark' ? '☀️' : '🌙';
+                }
+            } catch (err) {
+                console.warn('Theme-Sync fehlgeschlagen:', err);
+            }
+        }
 
         // ===== API: Items laden =====
         async function loadItems() {
